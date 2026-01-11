@@ -54,9 +54,9 @@ func main() {
 		return
 	}
 
-	// Validate required files
-	if *csvFile == "" || *excelFile == "" {
-		fmt.Println("Usage: qa-script -csv <csv_file> -excel <excel_file> [-output <output_file>]")
+	// Validate required files (CSV is required, Excel is optional)
+	if *csvFile == "" {
+		fmt.Println("Usage: qa-script -csv <csv_file> [-excel <excel_file>] [-output <output_file>]")
 		flag.PrintDefaults()
 		os.Exit(1)
 	}
@@ -74,6 +74,12 @@ func main() {
 		log.Fatalf("Error reading CSV Location column: %v", err)
 	}
 	fmt.Printf("CSV unique locations: %d\n", len(locations))
+
+	// Build a lookup set for CSV locations (normalized to uppercase)
+	csvLocationSet := make(map[string]struct{}, len(locations))
+	for _, loc := range locations {
+		csvLocationSet[strings.ToUpper(strings.TrimSpace(loc))] = struct{}{}
+	}
 
 	// Check if template exists, if not create it seeded from CSV.
 	if _, err := os.Stat(*templateFile); os.IsNotExist(err) {
@@ -94,42 +100,69 @@ func main() {
 		log.Fatalf("Error loading config: %v", err)
 	}
 
-	// Parse Excel file (always uses first sheet)
-	fmt.Printf("Parsing Excel file: %s\n", *excelFile)
-	excelData, err := parser.ParseExcel(*excelFile, "")
-	if err != nil {
-		log.Fatalf("Error parsing Excel: %v", err)
-	}
-	fmt.Printf("Excel parsed successfully: %d rows\n", len(excelData.Rows))
-
-	// Build highlight set from Excel:
-	// - filter rows where `Container Tag` == `QA_HOLD_PICKING`
-	// - collect `Current Location`
-	tagIdx := excelData.GetColumnIndex("Container Tag")
-	locIdx := excelData.GetColumnIndex("Current Location")
-	if tagIdx == -1 {
-		log.Fatalf("Excel column %q not found", "Container Tag")
-	}
-	if locIdx == -1 {
-		log.Fatalf("Excel column %q not found", "Current Location")
-	}
-
+	// Build highlight set from Excel (if provided)
 	highlight := make(map[string]struct{})
-	for _, row := range excelData.Rows {
-		if tagIdx >= len(row) {
-			continue
+
+	if *excelFile != "" {
+		// Parse Excel file (always uses first sheet)
+		fmt.Printf("Parsing Excel file: %s\n", *excelFile)
+		excelData, err := parser.ParseExcel(*excelFile, "")
+		if err != nil {
+			log.Fatalf("Error parsing Excel: %v", err)
 		}
-		if strings.TrimSpace(row[tagIdx]) != "QA_HOLD_PICKING" {
-			continue
-		}
-		if locIdx < len(row) {
-			v := strings.ToUpper(strings.TrimSpace(row[locIdx]))
-			if v != "" {
-				highlight[v] = struct{}{}
+		fmt.Printf("Excel parsed successfully: %d rows\n", len(excelData.Rows))
+
+		// Only process if Excel has data rows
+		if len(excelData.Rows) > 0 {
+			tagIdx := excelData.GetColumnIndex("Container Tag")
+			locIdx := excelData.GetColumnIndex("Current Location")
+			if tagIdx == -1 {
+				log.Fatalf("Excel column %q not found", "Container Tag")
 			}
+			if locIdx == -1 {
+				log.Fatalf("Excel column %q not found", "Current Location")
+			}
+
+			// Validate that all Excel "Current Location" values exist in CSV locations
+			var invalidLocations []string
+			for _, row := range excelData.Rows {
+				if locIdx >= len(row) {
+					continue
+				}
+				loc := strings.ToUpper(strings.TrimSpace(row[locIdx]))
+				if loc == "" {
+					continue
+				}
+				if _, exists := csvLocationSet[loc]; !exists {
+					invalidLocations = append(invalidLocations, row[locIdx])
+				}
+			}
+			if len(invalidLocations) > 0 {
+				log.Fatalf("Invalid Excel file: the following 'Current Location' values are not in the CSV locations: %v", invalidLocations)
+			}
+
+			// Build highlight set: locations where Container Tag == QA_HOLD_PICKING
+			for _, row := range excelData.Rows {
+				if tagIdx >= len(row) {
+					continue
+				}
+				if strings.TrimSpace(row[tagIdx]) != "QA_HOLD_PICKING" {
+					continue
+				}
+				if locIdx < len(row) {
+					v := strings.ToUpper(strings.TrimSpace(row[locIdx]))
+					if v != "" {
+						highlight[v] = struct{}{}
+					}
+				}
+			}
+			fmt.Printf("Excel highlight locations (QA_HOLD_PICKING): %d\n", len(highlight))
+		} else {
+			fmt.Println("Excel file is empty, proceeding without highlights")
 		}
+	} else {
+		fmt.Println("No Excel file provided, proceeding without highlights")
 	}
-	fmt.Printf("Excel highlight locations (QA_HOLD_PICKING): %d\n", len(highlight))
 
 	// Write grouped output
 	fmt.Printf("Writing grouped output to: %s\n", *outputFile)

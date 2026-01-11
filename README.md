@@ -1,13 +1,14 @@
 # QA Script
 
-A Go tool that reads location data from a CSV file, groups locations based on configurable rules, and outputs a formatted Excel file. Locations matching `QA_HOLD_PICKING` status from an input Excel file are highlighted in yellow.
+A Go tool that reads location data from a CSV file, groups locations based on configurable rules, and outputs a formatted Excel file. Optionally, locations matching `QA_HOLD_PICKING` status from an input Excel file can be highlighted in yellow.
 
 ## Features
 
 - Parse CSV files to extract location codes
 - Group locations by configurable letter prefixes or exact codes
 - Automatic column spillover when groups exceed a size limit
-- Highlight locations that have `QA_HOLD_PICKING` container tags (from Excel input)
+- **Optional** Excel input to highlight locations with `QA_HOLD_PICKING` container tags
+- Validation: Excel locations must be a subset of CSV locations
 - Auto-generate YAML templates from CSV data
 - Timestamped output files (`p1_<timestamp>.xlsx`)
 
@@ -19,7 +20,13 @@ go build -o qa-script .
 
 ## Usage
 
-### Basic Usage
+### Basic Usage (CSV only)
+
+```bash
+./qa-script -csv locations.csv
+```
+
+### With Excel Highlighting
 
 ```bash
 ./qa-script -csv locations.csv -excel containers.xlsx
@@ -46,7 +53,7 @@ Or generate an empty template:
 | Flag | Description | Default |
 |------|-------------|---------|
 | `-csv` | Path to the CSV file (must have a "Location" column) | (required) |
-| `-excel` | Path to the Excel file (must have "Container Tag" and "Current Location" columns) | (required) |
+| `-excel` | Path to the Excel file (optional, for highlighting) | (none) |
 | `-output` | Path for the output Excel file | `p1_<timestamp>.xlsx` |
 | `-template` | Path to the YAML template file | `template.yaml` |
 | `-generate-template` | Generate a YAML template file | `false` |
@@ -106,7 +113,7 @@ Location codes follow the format `PREFIX:CODE` (e.g., `SS4:GF225.B`). The `PREFI
 - If a group has more items than `size`, it spills into additional columns
 - Groups are separated by blank columns
 - Headers repeat for each spilled column
-- Locations matching `QA_HOLD_PICKING` from the input Excel are highlighted yellow
+- Locations matching `QA_HOLD_PICKING` from the input Excel are highlighted yellow (if Excel provided)
 - Unmatched locations appear in an "unmatched" column at the end
 
 **Example output with `size: 3`:**
@@ -121,15 +128,23 @@ Location codes follow the format `PREFIX:CODE` (e.g., `SS4:GF225.B`). The `PREFI
 
 ## Input File Requirements
 
-### CSV File
+### CSV File (Required)
 
 Must contain a `Location` column with location codes to be grouped.
 
-### Excel File
+### Excel File (Optional)
 
-Must contain:
+If provided, must contain:
 - `Container Tag` column - used to identify `QA_HOLD_PICKING` items
 - `Current Location` column - locations with `QA_HOLD_PICKING` tags will be highlighted
+
+**Validation:** All `Current Location` values in the Excel file must exist in the CSV's `Location` column. If any Excel location is not found in the CSV, the tool will exit with an error listing the invalid locations.
+
+The Excel file can be:
+- Omitted entirely (just use `-csv`)
+- Empty (has headers but no data rows)
+
+In either case, the tool will still group and sort locations from the CSV, just without any highlighting.
 
 ## Project Structure
 
