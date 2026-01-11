@@ -3,28 +3,23 @@ package merger
 import (
 	"fmt"
 	"math"
-	"regexp"
 	"sort"
 	"strings"
 
 	"github.com/xuri/excelize/v2"
 
 	"qa-script/config"
+	"qa-script/rules"
 )
-
-var locationCodeRe = regexp.MustCompile(`:((?:[ABCEFGHJKLMNST][A-Z])|PRM|LUD|SLP|MEZ|GFT|HVC|HWK)\d{1,3}`)
 
 func normalizeLocation(s string) string {
 	return strings.ToUpper(strings.TrimSpace(s))
 }
 
 // ExtractLocationCode returns the location code portion used for grouping (e.g. "HVC" from ":HVC12").
+// This is a wrapper around rules.ExtractLetterCode for backward compatibility.
 func ExtractLocationCode(location string) (string, bool) {
-	m := locationCodeRe.FindStringSubmatch(strings.ToUpper(location))
-	if len(m) < 2 {
-		return "", false
-	}
-	return m[1], true
+	return rules.ExtractLetterCode(location)
 }
 
 // BuildDefaultGroupsFromLocations creates one group per discovered code, useful for template generation.
@@ -90,21 +85,11 @@ func WriteGroupedExcel(outputPath string, cfg *config.Config, locations []string
 		groupValues[i] = out
 	}
 
-	matchesGroup := func(groupIdx int, code string) bool {
-		code = strings.ToUpper(strings.TrimSpace(code))
-		if code == "" {
-			return false
-		}
+	// matchesGroup uses the rules package to determine if a location code matches a group.
+	matchesGroup := func(groupIdx int, location string) bool {
+		lc := rules.ParseLocation(location)
 		for _, gv := range groupValues[groupIdx] {
-			// Single-letter group value means "prefix match" (e.g. "A" matches "AB", "AN", etc).
-			if len(gv) == 1 && gv[0] >= 'A' && gv[0] <= 'Z' {
-				if strings.HasPrefix(code, gv) {
-					return true
-				}
-				continue
-			}
-			// Otherwise, match exact extracted code (e.g. "HVC").
-			if code == gv {
+			if lc.MatchesGroupValue(gv) {
 				return true
 			}
 		}
@@ -117,15 +102,15 @@ func WriteGroupedExcel(outputPath string, cfg *config.Config, locations []string
 	for gi, g := range cfg.Groups {
 		var groupLocs []string
 		for i, loc := range locations {
-			code, ok := ExtractLocationCode(loc)
-			if !ok {
-				continue
-			}
-			if matchesGroup(gi, code) {
+			// Use the rules package to check if location matches this group
+			if matchesGroup(gi, loc) {
 				groupLocs = append(groupLocs, loc)
 				used[i] = true
 			}
 		}
+
+		// Sort locations within the group using rules-based sorting
+		groupLocs = rules.SortLocations(groupLocs)
 
 		colsUsed := 1
 		if len(groupLocs) > 0 {
@@ -165,6 +150,8 @@ func WriteGroupedExcel(outputPath string, cfg *config.Config, locations []string
 		}
 		unmatched = append(unmatched, loc)
 	}
+	// Sort unmatched locations as well
+	unmatched = rules.SortLocations(unmatched)
 	if len(unmatched) > 0 {
 		colsUsed := int(math.Ceil(float64(len(unmatched)) / float64(size)))
 		if colsUsed < 1 {
