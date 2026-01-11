@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"strings"
+	"time"
 
 	"qa-script/config"
 	"qa-script/merger"
@@ -16,7 +17,8 @@ func main() {
 	// Define command-line flags
 	csvFile := flag.String("csv", "", "Path to the CSV file")
 	excelFile := flag.String("excel", "", "Path to the Excel file")
-	outputFile := flag.String("output", "output.xlsx", "Path for the output Excel file")
+	defaultOutput := fmt.Sprintf("p1_%s.xlsx", time.Now().Format("20060102_150405"))
+	outputFile := flag.String("output", defaultOutput, "Path for the output Excel file")
 	templateFile := flag.String("template", "template.yaml", "Path to the YAML template file")
 	generateTemplate := flag.Bool("generate-template", false, "Generate a YAML template file")
 
@@ -35,9 +37,8 @@ func main() {
 				log.Fatalf("Error reading CSV Location column for template generation: %v", err)
 			}
 			cfg := &config.Config{
-				Size:        20,
-				OutputSheet: "Groups",
-				Groups:      merger.BuildDefaultGroupsFromLocations(locations),
+				Size:   20,
+				Groups: merger.BuildDefaultGroupsFromLocations(locations),
 			}
 			if err := config.SaveConfig(cfg, *templateFile); err != nil {
 				log.Fatalf("Error writing template: %v", err)
@@ -78,9 +79,8 @@ func main() {
 	if _, err := os.Stat(*templateFile); os.IsNotExist(err) {
 		fmt.Println("Template file not found. Generating template from CSV location codes...")
 		genCfg := &config.Config{
-			Size:        20,
-			OutputSheet: "Groups",
-			Groups:      merger.BuildDefaultGroupsFromLocations(locations),
+			Size:   20,
+			Groups: merger.BuildDefaultGroupsFromLocations(locations),
 		}
 		if err := config.SaveConfig(genCfg, *templateFile); err != nil {
 			log.Fatalf("Error generating template: %v", err)
@@ -94,9 +94,9 @@ func main() {
 		log.Fatalf("Error loading config: %v", err)
 	}
 
-	// Parse Excel file
+	// Parse Excel file (always uses first sheet)
 	fmt.Printf("Parsing Excel file: %s\n", *excelFile)
-	excelData, err := parser.ParseExcel(*excelFile, cfg.ExcelSheet)
+	excelData, err := parser.ParseExcel(*excelFile, "")
 	if err != nil {
 		log.Fatalf("Error parsing Excel: %v", err)
 	}

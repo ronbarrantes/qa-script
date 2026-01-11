@@ -9,6 +9,7 @@ A Go tool that reads location data from a CSV file, groups locations based on co
 - Automatic column spillover when groups exceed a size limit
 - Highlight locations that have `QA_HOLD_PICKING` container tags (from Excel input)
 - Auto-generate YAML templates from CSV data
+- Timestamped output files (`p1_<timestamp>.xlsx`)
 
 ## Installation
 
@@ -21,8 +22,10 @@ go build -o qa-script .
 ### Basic Usage
 
 ```bash
-./qa-script -csv locations.csv -excel containers.xlsx -output output.xlsx
+./qa-script -csv locations.csv -excel containers.xlsx
 ```
+
+Output will be saved as `p1_20260111_143022.xlsx` (with current timestamp).
 
 ### Generate Template
 
@@ -44,7 +47,7 @@ Or generate an empty template:
 |------|-------------|---------|
 | `-csv` | Path to the CSV file (must have a "Location" column) | (required) |
 | `-excel` | Path to the Excel file (must have "Container Tag" and "Current Location" columns) | (required) |
-| `-output` | Path for the output Excel file | `output.xlsx` |
+| `-output` | Path for the output Excel file | `p1_<timestamp>.xlsx` |
 | `-template` | Path to the YAML template file | `template.yaml` |
 | `-generate-template` | Generate a YAML template file | `false` |
 
@@ -74,12 +77,6 @@ groups:
 
 # Maximum rows per column before spilling to next column
 size: 20
-
-# Optional: specify which sheet to read from the input Excel file
-excel_sheet: ""
-
-# Optional: name of the output sheet
-output_sheet: Groups
 ```
 
 ### Configuration Options
@@ -90,8 +87,6 @@ output_sheet: Groups
 | `groups[].name` | Header name shown in output Excel | - |
 | `groups[].values` | Comma-separated location codes or single letters | - |
 | `size` | Max rows per column before creating a new column | `20` |
-| `excel_sheet` | Sheet name to read from input Excel | First sheet |
-| `output_sheet` | Sheet name for the output Excel | `Groups` |
 
 ### Location Matching Rules
 
