@@ -30,3 +30,8 @@ go.work.sum
 # Editor/IDE
 # .idea/
 # .vscode/
+
+# Generated files
+template.yaml
+output.xlsx
+qa-script
