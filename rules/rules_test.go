@@ -206,3 +206,84 @@ func TestExtractSortKey(t *testing.T) {
 		})
 	}
 }
+
+func TestParseLocation_PreservesOriginal(t *testing.T) {
+	// Verify that the Original field preserves the FULL location string
+	// including the prefix before the colon (e.g., "PS1:", "SS4:")
+	tests := []string{
+		"PS1:AB215",
+		"SS4:GF253.G",
+		"SS11:EN15.B",
+		"ST3:CS121",
+		"PS1:LUD86",
+		"SS4:GFT31.A",
+	}
+
+	for _, input := range tests {
+		t.Run(input, func(t *testing.T) {
+			lc := ParseLocation(input)
+			if lc.Original != input {
+				t.Errorf("Original = %q, want %q (full string must be preserved)", lc.Original, input)
+			}
+		})
+	}
+}
+
+func TestSortLocations_PreservesFullStrings(t *testing.T) {
+	// CRITICAL: Sorting must preserve the FULL location string including prefix
+	// Only the part after ":" is used for sorting, but output must include everything
+	input := []string{
+		"SS4:GF300.B",
+		"PS1:AB50",
+		"SS11:GF25.A",
+		"ST3:GF100.C",
+	}
+
+	sorted := SortLocations(input)
+
+	// Verify all results still have their prefixes
+	for i, loc := range sorted {
+		if loc == "" {
+			t.Errorf("sorted[%d] is empty", i)
+			continue
+		}
+		// Each result must contain a colon (prefix preserved)
+		if !contains(loc, ":") {
+			t.Errorf("sorted[%d] = %q is missing prefix (no colon found)", i, loc)
+		}
+		// Must be one of our original inputs
+		found := false
+		for _, orig := range input {
+			if loc == orig {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Errorf("sorted[%d] = %q is not from original input (string was modified)", i, loc)
+		}
+	}
+
+	// Verify sorting order (by code after colon)
+	// AB50 < GF25 < GF100 < GF300
+	expected := []string{
+		"PS1:AB50",
+		"SS11:GF25.A",
+		"ST3:GF100.C",
+		"SS4:GF300.B",
+	}
+	for i, want := range expected {
+		if sorted[i] != want {
+			t.Errorf("sorted[%d] = %q, want %q", i, sorted[i], want)
+		}
+	}
+}
+
+func contains(s, substr string) bool {
+	for i := 0; i <= len(s)-len(substr); i++ {
+		if s[i:i+len(substr)] == substr {
+			return true
+		}
+	}
+	return false
+}

@@ -1,0 +1,42 @@
+# QA Script Configuration Example
+#
+# This file defines how locations are grouped in the output Excel.
+#
+# OUTPUT FORMAT:
+# - Each group becomes a column (or multiple columns if items exceed 'size')
+# - Groups are separated by blank columns
+# - Headers repeat for each spilled column
+# - Locations matching QA_HOLD_PICKING from Excel are highlighted yellow
+#
+# Example output with size: 3 and 5 items in "e - g":
+#
+#   | pallets |   | e - g | e - g |   | h - k | ...
+#   |---------|---|-------|-------|---|-------|
+#   | AB215   |   | EN15  | GF253 |   | HA101 |
+#   | LUD86   |   | EN333 | GC111 |   | JB202 |
+#   | CS121   |   | GFT31 |       |   |       |
+#
+# VALUES MATCHING:
+# - Single letter (e.g., "a"): matches any code starting with that letter
+#   Example: "a" matches AB215, AC100, etc.
+# - Multi-letter (e.g., "lud", "gft"): exact match for 3-letter codes
+#   Example: "lud" matches LUD86, "gft" matches GFT31
+
+groups:
+  - name: pallets
+    values: a, b, c, lud, prm, slp
+
+  - name: e - g
+    values: e, f, g, gft, hwk, hvc
+
+  - name: h - k
+    values: h, j, k
+
+  - name: lm
+    values: l, m
+
+  - name: n - t
+    values: n, s, t, mez
+
+# Maximum rows per column before spilling to next column
+size: 3
