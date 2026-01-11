@@ -4,6 +4,7 @@ import (
 	"encoding/csv"
 	"fmt"
 	"os"
+	"strings"
 )
 
 // CSVData represents parsed CSV data with headers and rows
@@ -65,6 +66,29 @@ func (c *CSVData) GetColumnValues(columnName string) ([]string, error) {
 		}
 	}
 	return values, nil
+}
+
+// GetUniqueColumnValues returns de-duplicated column values (preserving first-seen order).
+func (c *CSVData) GetUniqueColumnValues(columnName string) ([]string, error) {
+	values, err := c.GetColumnValues(columnName)
+	if err != nil {
+		return nil, err
+	}
+
+	seen := make(map[string]struct{}, len(values))
+	out := make([]string, 0, len(values))
+	for _, v := range values {
+		v = strings.TrimSpace(v)
+		if v == "" {
+			continue
+		}
+		if _, ok := seen[v]; ok {
+			continue
+		}
+		seen[v] = struct{}{}
+		out = append(out, v)
+	}
+	return out, nil
 }
 
 // ToMap converts rows to a slice of maps with header keys
