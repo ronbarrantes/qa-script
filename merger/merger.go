@@ -58,10 +58,7 @@ func WriteGroupedExcel(outputPath string, cfg *config.Config, locations []string
 	f := excelize.NewFile()
 	defer f.Close()
 
-	sheetName := cfg.OutputSheet
-	if sheetName == "" {
-		sheetName = "Groups"
-	}
+	const sheetName = "Groups"
 	f.SetSheetName("Sheet1", sheetName)
 
 	headerStyle, _ := f.NewStyle(&excelize.Style{

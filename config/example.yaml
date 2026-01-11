@@ -7,6 +7,7 @@
 # - Groups are separated by blank columns
 # - Headers repeat for each spilled column
 # - Locations matching QA_HOLD_PICKING from Excel are highlighted yellow
+# - Output file is auto-named: p1_<timestamp>.xlsx
 #
 # Example output with size: 3 and 5 items in "e - g":
 #
@@ -39,4 +40,4 @@ groups:
     values: n, s, t, mez
 
 # Maximum rows per column before spilling to next column
-size: 3
+size: 20

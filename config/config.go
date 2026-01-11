@@ -15,14 +15,6 @@ type Config struct {
 
 	// Size is the maximum number of rows in a column for a group before spilling into the next column.
 	Size int `yaml:"size"`
-
-	// ExcelSheet optionally selects the sheet to read from the input Excel file.
-	// Empty means the first sheet.
-	ExcelSheet string `yaml:"excel_sheet,omitempty"`
-
-	// OutputSheet optionally sets the output sheet name.
-	// Empty means "Groups".
-	OutputSheet string `yaml:"output_sheet,omitempty"`
 }
 
 // Group represents one output group (e.g. "a-f") and which location codes belong to it.
@@ -106,8 +98,6 @@ func GenerateTemplate(filePath string) error {
 groups: []
 
 size: 20
-
-output_sheet: Groups
 `
 
 	if err := os.WriteFile(filePath, []byte(content), 0644); err != nil {
