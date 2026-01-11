@@ -77,17 +77,38 @@ func WriteGroupedExcel(outputPath string, cfg *config.Config, locations []string
 		Fill: excelize.Fill{Type: "pattern", Color: []string{"#FFFF00"}, Pattern: 1},
 	})
 
-	// Precompute group membership sets.
-	groupValueSets := make([]map[string]struct{}, len(cfg.Groups))
+	// Precompute group membership values (supports both "A" prefix match and exact code match).
+	groupValues := make([][]string, len(cfg.Groups))
 	for i, g := range cfg.Groups {
-		s := make(map[string]struct{}, len(g.Values))
+		out := make([]string, 0, len(g.Values))
 		for _, v := range g.Values {
 			vn := strings.ToUpper(strings.TrimSpace(v))
 			if vn != "" {
-				s[vn] = struct{}{}
+				out = append(out, vn)
 			}
 		}
-		groupValueSets[i] = s
+		groupValues[i] = out
+	}
+
+	matchesGroup := func(groupIdx int, code string) bool {
+		code = strings.ToUpper(strings.TrimSpace(code))
+		if code == "" {
+			return false
+		}
+		for _, gv := range groupValues[groupIdx] {
+			// Single-letter group value means "prefix match" (e.g. "A" matches "AB", "AN", etc).
+			if len(gv) == 1 && gv[0] >= 'A' && gv[0] <= 'Z' {
+				if strings.HasPrefix(code, gv) {
+					return true
+				}
+				continue
+			}
+			// Otherwise, match exact extracted code (e.g. "HVC").
+			if code == gv {
+				return true
+			}
+		}
+		return false
 	}
 
 	used := make([]bool, len(locations))
@@ -100,7 +121,7 @@ func WriteGroupedExcel(outputPath string, cfg *config.Config, locations []string
 			if !ok {
 				continue
 			}
-			if _, in := groupValueSets[gi][strings.ToUpper(code)]; in {
+			if matchesGroup(gi, code) {
 				groupLocs = append(groupLocs, loc)
 				used[i] = true
 			}
