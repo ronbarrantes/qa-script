@@ -2,154 +2,171 @@ package merger
 
 import (
 	"fmt"
+	"math"
+	"regexp"
+	"sort"
+	"strings"
 
 	"github.com/xuri/excelize/v2"
 
 	"qa-script/config"
-	"qa-script/parser"
 )
 
-// MergeAndWrite combines CSV and Excel data according to the config and writes the output
-func MergeAndWrite(csvData *parser.CSVData, excelData *parser.ExcelData, outputPath string, cfg *config.Config) error {
-	// Create new Excel file
-	f := excelize.NewFile()
-	defer f.Close()
+var locationCodeRe = regexp.MustCompile(`:((?:[ABCEFGHJKLMNST][A-Z])|PRM|LUD|SLP|MEZ|GFT|HVC|HWK)\d{1,3}`)
 
-	// Set the sheet name
-	sheetName := cfg.Output.SheetName
-	if sheetName == "" {
-		sheetName = "Combined"
-	}
-
-	// Rename the default sheet
-	f.SetSheetName("Sheet1", sheetName)
-
-	// Convert source data to maps for easier lookup
-	csvMaps := csvData.ToMap()
-	excelMaps := excelData.ToMap()
-
-	// Write headers based on column mapping
-	for colIdx, mapping := range cfg.Output.ColumnMapping {
-		cell, _ := excelize.CoordinatesToCellName(colIdx+1, 1)
-		f.SetCellValue(sheetName, cell, mapping.OutputName)
-	}
-
-	// Determine the number of rows to write
-	// Use the maximum of CSV and Excel rows
-	maxRows := len(csvMaps)
-	if len(excelMaps) > maxRows {
-		maxRows = len(excelMaps)
-	}
-
-	// Write data rows
-	for rowIdx := 0; rowIdx < maxRows; rowIdx++ {
-		for colIdx, mapping := range cfg.Output.ColumnMapping {
-			var value string
-
-			switch mapping.Source {
-			case "csv":
-				if rowIdx < len(csvMaps) {
-					if val, ok := csvMaps[rowIdx][mapping.SourceColumn]; ok && val != "" {
-						value = val
-					} else {
-						value = mapping.Default
-					}
-				} else {
-					value = mapping.Default
-				}
-			case "excel":
-				if rowIdx < len(excelMaps) {
-					if val, ok := excelMaps[rowIdx][mapping.SourceColumn]; ok && val != "" {
-						value = val
-					} else {
-						value = mapping.Default
-					}
-				} else {
-					value = mapping.Default
-				}
-			default:
-				value = mapping.Default
-			}
-
-			cell, _ := excelize.CoordinatesToCellName(colIdx+1, rowIdx+2) // +2 because row 1 is headers
-			f.SetCellValue(sheetName, cell, value)
-		}
-	}
-
-	// Save the file
-	if err := f.SaveAs(outputPath); err != nil {
-		return fmt.Errorf("failed to save output file: %w", err)
-	}
-
-	return nil
+func normalizeLocation(s string) string {
+	return strings.ToUpper(strings.TrimSpace(s))
 }
 
-// MergeByKey combines data from CSV and Excel based on a common key column
-func MergeByKey(csvData *parser.CSVData, excelData *parser.ExcelData, outputPath string, cfg *config.Config, keyColumn string) error {
-	// Create new Excel file
+// ExtractLocationCode returns the location code portion used for grouping (e.g. "HVC" from ":HVC12").
+func ExtractLocationCode(location string) (string, bool) {
+	m := locationCodeRe.FindStringSubmatch(strings.ToUpper(location))
+	if len(m) < 2 {
+		return "", false
+	}
+	return m[1], true
+}
+
+// BuildDefaultGroupsFromLocations creates one group per discovered code, useful for template generation.
+func BuildDefaultGroupsFromLocations(locations []string) []config.Group {
+	seen := map[string]struct{}{}
+	var codes []string
+	for _, loc := range locations {
+		if code, ok := ExtractLocationCode(loc); ok {
+			if _, exists := seen[code]; !exists {
+				seen[code] = struct{}{}
+				codes = append(codes, code)
+			}
+		}
+	}
+	sort.Strings(codes)
+
+	groups := make([]config.Group, 0, len(codes))
+	for _, code := range codes {
+		groups = append(groups, config.Group{Name: strings.ToLower(code), Values: []string{code}})
+	}
+	return groups
+}
+
+// WriteGroupedExcel writes a grouped output Excel:
+// - locations are placed into columns by group, spilling after cfg.Size rows
+// - any written cell that matches highlightLocations (case-insensitive) is filled yellow
+func WriteGroupedExcel(outputPath string, cfg *config.Config, locations []string, highlightLocations map[string]struct{}) error {
+	if cfg == nil {
+		return fmt.Errorf("config is nil")
+	}
+	size := cfg.Size
+	if size <= 0 {
+		size = 20
+	}
+
 	f := excelize.NewFile()
 	defer f.Close()
 
-	// Set the sheet name
-	sheetName := cfg.Output.SheetName
+	sheetName := cfg.OutputSheet
 	if sheetName == "" {
-		sheetName = "Combined"
+		sheetName = "Groups"
 	}
-
 	f.SetSheetName("Sheet1", sheetName)
 
-	// Build index from Excel data by key
-	excelIndex := make(map[string]map[string]string)
-	for _, row := range excelData.ToMap() {
-		if key, ok := row[keyColumn]; ok && key != "" {
-			excelIndex[key] = row
-		}
-	}
+	headerStyle, _ := f.NewStyle(&excelize.Style{
+		Font: &excelize.Font{Bold: true},
+		Fill: excelize.Fill{Type: "pattern", Color: []string{"#EDEDED"}, Pattern: 1},
+	})
+	yellowStyle, _ := f.NewStyle(&excelize.Style{
+		Fill: excelize.Fill{Type: "pattern", Color: []string{"#FFFF00"}, Pattern: 1},
+	})
 
-	// Write headers
-	for colIdx, mapping := range cfg.Output.ColumnMapping {
-		cell, _ := excelize.CoordinatesToCellName(colIdx+1, 1)
-		f.SetCellValue(sheetName, cell, mapping.OutputName)
-	}
-
-	// Write data rows, joining on the key
-	csvMaps := csvData.ToMap()
-	for rowIdx, csvRow := range csvMaps {
-		keyValue := csvRow[keyColumn]
-		excelRow := excelIndex[keyValue] // May be nil if no match
-
-		for colIdx, mapping := range cfg.Output.ColumnMapping {
-			var value string
-
-			switch mapping.Source {
-			case "csv":
-				if val, ok := csvRow[mapping.SourceColumn]; ok && val != "" {
-					value = val
-				} else {
-					value = mapping.Default
-				}
-			case "excel":
-				if excelRow != nil {
-					if val, ok := excelRow[mapping.SourceColumn]; ok && val != "" {
-						value = val
-					} else {
-						value = mapping.Default
-					}
-				} else {
-					value = mapping.Default
-				}
-			default:
-				value = mapping.Default
+	// Precompute group membership sets.
+	groupValueSets := make([]map[string]struct{}, len(cfg.Groups))
+	for i, g := range cfg.Groups {
+		s := make(map[string]struct{}, len(g.Values))
+		for _, v := range g.Values {
+			vn := strings.ToUpper(strings.TrimSpace(v))
+			if vn != "" {
+				s[vn] = struct{}{}
 			}
+		}
+		groupValueSets[i] = s
+	}
 
-			cell, _ := excelize.CoordinatesToCellName(colIdx+1, rowIdx+2)
-			f.SetCellValue(sheetName, cell, value)
+	used := make([]bool, len(locations))
+
+	colStart := 1
+	for gi, g := range cfg.Groups {
+		var groupLocs []string
+		for i, loc := range locations {
+			code, ok := ExtractLocationCode(loc)
+			if !ok {
+				continue
+			}
+			if _, in := groupValueSets[gi][strings.ToUpper(code)]; in {
+				groupLocs = append(groupLocs, loc)
+				used[i] = true
+			}
+		}
+
+		colsUsed := 1
+		if len(groupLocs) > 0 {
+			colsUsed = int(math.Ceil(float64(len(groupLocs)) / float64(size)))
+			if colsUsed < 1 {
+				colsUsed = 1
+			}
+		}
+
+		// Headers (repeat per spilled column).
+		for c := 0; c < colsUsed; c++ {
+			cell, _ := excelize.CoordinatesToCellName(colStart+c, 1)
+			f.SetCellValue(sheetName, cell, g.Name)
+			f.SetCellStyle(sheetName, cell, cell, headerStyle)
+		}
+
+		// Values.
+		for i, loc := range groupLocs {
+			c := colStart + (i / size)
+			r := 2 + (i % size)
+			cell, _ := excelize.CoordinatesToCellName(c, r)
+			f.SetCellValue(sheetName, cell, loc)
+			if _, ok := highlightLocations[normalizeLocation(loc)]; ok {
+				f.SetCellStyle(sheetName, cell, cell, yellowStyle)
+			}
+		}
+
+		// Add a blank separator column after each group.
+		colStart += colsUsed + 1
+	}
+
+	// Append any locations not covered by configured groups.
+	var unmatched []string
+	for i, loc := range locations {
+		if used[i] {
+			continue
+		}
+		unmatched = append(unmatched, loc)
+	}
+	if len(unmatched) > 0 {
+		colsUsed := int(math.Ceil(float64(len(unmatched)) / float64(size)))
+		if colsUsed < 1 {
+			colsUsed = 1
+		}
+		for c := 0; c < colsUsed; c++ {
+			cell, _ := excelize.CoordinatesToCellName(colStart+c, 1)
+			f.SetCellValue(sheetName, cell, "unmatched")
+			f.SetCellStyle(sheetName, cell, cell, headerStyle)
+		}
+		for i, loc := range unmatched {
+			c := colStart + (i / size)
+			r := 2 + (i % size)
+			cell, _ := excelize.CoordinatesToCellName(c, r)
+			f.SetCellValue(sheetName, cell, loc)
+			if _, ok := highlightLocations[normalizeLocation(loc)]; ok {
+				f.SetCellStyle(sheetName, cell, cell, yellowStyle)
+			}
 		}
 	}
 
 	if err := f.SaveAs(outputPath); err != nil {
 		return fmt.Errorf("failed to save output file: %w", err)
 	}
-
 	return nil
 }
