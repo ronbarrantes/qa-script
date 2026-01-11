@@ -1,14 +1,14 @@
 # QA Script
 
-A Go executable that parses CSV and Excel files and combines them into a single output Excel file based on a configurable YAML template.
+A Go tool that reads location data from a CSV file, groups locations based on configurable rules, and outputs a formatted Excel file. Locations matching `QA_HOLD_PICKING` status from an input Excel file are highlighted in yellow.
 
 ## Features
 
-- Parse CSV files with configurable delimiters
-- Parse Excel files with sheet selection
-- Combine data from both sources into a single Excel output
-- YAML-based template for defining the output format
-- Automatic template generation on first run
+- Parse CSV files to extract location codes
+- Group locations by configurable letter prefixes or exact codes
+- Automatic column spillover when groups exceed a size limit
+- Highlight locations that have `QA_HOLD_PICKING` container tags (from Excel input)
+- Auto-generate YAML templates from CSV data
 
 ## Installation
 
@@ -18,91 +18,140 @@ go build -o qa-script .
 
 ## Usage
 
-### Generate Template
-
-On first run (or explicitly), the tool generates a YAML template file:
+### Basic Usage
 
 ```bash
-# Explicit template generation
-./qa-script -generate-template
-
-# Or just run without a template - it will create one automatically
-./qa-script
+./qa-script -csv locations.csv -excel containers.xlsx -output output.xlsx
 ```
 
-### Process Files
+### Generate Template
 
-After configuring the template:
+Generate a YAML template seeded with location codes from your CSV:
 
 ```bash
-./qa-script -csv input.csv -excel input.xlsx -output output.xlsx
+./qa-script -generate-template -csv locations.csv
+```
+
+Or generate an empty template:
+
+```bash
+./qa-script -generate-template
 ```
 
 ### Command-Line Options
 
 | Flag | Description | Default |
 |------|-------------|---------|
-| `-csv` | Path to the CSV file | (required) |
-| `-excel` | Path to the Excel file | (required) |
+| `-csv` | Path to the CSV file (must have a "Location" column) | (required) |
+| `-excel` | Path to the Excel file (must have "Container Tag" and "Current Location" columns) | (required) |
 | `-output` | Path for the output Excel file | `output.xlsx` |
 | `-template` | Path to the YAML template file | `template.yaml` |
 | `-generate-template` | Generate a YAML template file | `false` |
 
-## Template Configuration
+## Configuration
 
-The YAML template defines how data is combined. Example:
+The YAML configuration defines how locations are grouped in the output Excel.
+
+### Example Configuration
 
 ```yaml
-version: "1.0"
+# Groups define how locations appear in the output
+groups:
+  - name: pallets
+    values: a, b, c, lud, prm, slp
 
-csv:
-  columns: []      # Empty = include all columns
-  skip_rows: 0     # Rows to skip at start
-  delimiter: ','   # CSV delimiter
+  - name: e - g
+    values: e, f, g, gft, hwk, hvc
 
-excel:
-  columns: []      # Empty = include all columns
-  sheet: ""        # Empty = use first sheet
-  skip_rows: 0     # Rows to skip at start
+  - name: h - k
+    values: h, j, k
 
-output:
-  sheet_name: Combined
-  column_mapping:
-    - output_name: ID
-      source: csv
-      source_column: id
-    - output_name: Name
-      source: excel
-      source_column: name
-      default: N/A
-    - output_name: Value
-      source: csv
-      source_column: value
-      default: "0"
+  - name: lm
+    values: l, m
 
-excel_sheet: ""    # Sheet to read from input Excel
+  - name: n - t
+    values: n, s, t, mez
+
+# Maximum rows per column before spilling to next column
+size: 20
+
+# Optional: specify which sheet to read from the input Excel file
+excel_sheet: ""
+
+# Optional: name of the output sheet
+output_sheet: Groups
 ```
 
-### Column Mapping
+### Configuration Options
 
-Each entry in `column_mapping` defines:
-- `output_name`: Column header in the output file
-- `source`: Where to get data (`csv` or `excel`)
-- `source_column`: Column name in the source file
-- `default`: Optional default value if source is empty
+| Field | Description | Default |
+|-------|-------------|---------|
+| `groups` | List of group definitions | (required) |
+| `groups[].name` | Header name shown in output Excel | - |
+| `groups[].values` | Comma-separated location codes or single letters | - |
+| `size` | Max rows per column before creating a new column | `20` |
+| `excel_sheet` | Sheet name to read from input Excel | First sheet |
+| `output_sheet` | Sheet name for the output Excel | `Groups` |
+
+### Location Matching Rules
+
+Location codes follow the format `PREFIX:CODE` (e.g., `SS4:GF225.B`). The `PREFIX:` portion is ignored for grouping; only the `CODE` part is used.
+
+**Value matching:**
+
+- **Single letter** (e.g., `a`): Matches any location code starting with that letter
+  - `a` matches `AB215`, `AC100`, etc.
+- **Multi-letter** (e.g., `lud`, `gft`): Exact match for the full letter prefix
+  - `lud` matches `LUD86` but not `LU123`
+  - `gft` matches `GFT31` but not `GF225`
+
+### Output Format
+
+- Each group becomes one or more columns in the output Excel
+- If a group has more items than `size`, it spills into additional columns
+- Groups are separated by blank columns
+- Headers repeat for each spilled column
+- Locations matching `QA_HOLD_PICKING` from the input Excel are highlighted yellow
+- Unmatched locations appear in an "unmatched" column at the end
+
+**Example output with `size: 3`:**
+
+```
+| pallets |   | e - g | e - g |   | h - k |
+|---------|---|-------|-------|---|-------|
+| AB215   |   | EN15  | GF253 |   | HA101 |
+| LUD86   |   | EN333 | GC111 |   | JB202 |
+| CS121   |   | GFT31 |       |   |       |
+```
+
+## Input File Requirements
+
+### CSV File
+
+Must contain a `Location` column with location codes to be grouped.
+
+### Excel File
+
+Must contain:
+- `Container Tag` column - used to identify `QA_HOLD_PICKING` items
+- `Current Location` column - locations with `QA_HOLD_PICKING` tags will be highlighted
 
 ## Project Structure
 
 ```
 qa-script/
-├── main.go           # Entry point
+├── main.go           # Entry point and CLI handling
 ├── config/
-│   └── config.go     # YAML template handling
+│   ├── config.go     # YAML configuration loading/saving
+│   └── config_test.go
 ├── parser/
-│   ├── csv.go        # CSV parsing
-│   └── excel.go      # Excel parsing
+│   ├── csv.go        # CSV file parsing
+│   └── excel.go      # Excel file parsing
 ├── merger/
-│   └── merger.go     # Data merging and output
+│   └── merger.go     # Grouping logic and Excel output
+├── rules/
+│   ├── rules.go      # Location parsing and matching rules
+│   └── rules_test.go
 ├── go.mod
 ├── go.sum
 └── README.md
