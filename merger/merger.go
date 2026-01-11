@@ -38,7 +38,7 @@ func BuildDefaultGroupsFromLocations(locations []string) []config.Group {
 
 	groups := make([]config.Group, 0, len(codes))
 	for _, code := range codes {
-		groups = append(groups, config.Group{Name: strings.ToLower(code), Values: []string{code}})
+		groups = append(groups, config.Group{Name: strings.ToLower(code), Values: config.StringList{code}})
 	}
 	return groups
 }

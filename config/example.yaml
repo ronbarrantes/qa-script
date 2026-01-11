@@ -1,0 +1,21 @@
+# QA Script Configuration Example
+#
+# This file defines how locations are grouped in the output Excel.
+
+groups:
+  - name: pallets
+    values: a, b, c, lud, prm, slp
+
+  - name: e - g
+    values: e, f, g, gft, hwk, hvc
+
+  - name: h - k
+    values: h, j, k
+
+  - name: lm
+    values: l, m
+
+  - name: n - t
+    values: n, s, t, mez
+
+size: 5
