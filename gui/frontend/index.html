@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QA Script - File Selector</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>📋 QA Script</h1>
+            <p class="subtitle">Drop your files below to get started</p>
+        </header>
+        
+        <main>
+            <div class="drop-zones">
+                <!-- CSV Drop Zone -->
+                <div class="drop-zone" id="csv-zone" data-type="csv">
+                    <div class="drop-zone-content">
+                        <div class="icon">📄</div>
+                        <h3>Current Locations</h3>
+                        <p class="hint">Drop CSV file here</p>
+                        <p class="file-type">.csv</p>
+                        <button class="browse-btn" onclick="browseFile('csv')">Browse</button>
+                    </div>
+                    <div class="file-info" id="csv-info" style="display: none;">
+                        <div class="file-name" id="csv-filename"></div>
+                        <div class="file-status" id="csv-status"></div>
+                        <div class="file-details" id="csv-details"></div>
+                        <button class="clear-btn" onclick="clearFile('csv')">✕ Remove</button>
+                    </div>
+                    <div class="validation-overlay" id="csv-overlay">
+                        <div class="spinner"></div>
+                        <span>Validating...</span>
+                    </div>
+                </div>
+                
+                <!-- Excel Drop Zone -->
+                <div class="drop-zone" id="excel-zone" data-type="excel">
+                    <div class="drop-zone-content">
+                        <div class="icon">📊</div>
+                        <h3>Priorities</h3>
+                        <p class="hint">Drop Excel file here</p>
+                        <p class="file-type">.xlsx / .xls</p>
+                        <button class="browse-btn" onclick="browseFile('excel')">Browse</button>
+                    </div>
+                    <div class="file-info" id="excel-info" style="display: none;">
+                        <div class="file-name" id="excel-filename"></div>
+                        <div class="file-status" id="excel-status"></div>
+                        <div class="file-details" id="excel-details"></div>
+                        <button class="clear-btn" onclick="clearFile('excel')">✕ Remove</button>
+                    </div>
+                    <div class="validation-overlay" id="excel-overlay">
+                        <div class="spinner"></div>
+                        <span>Validating...</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="requirements">
+                <h4>Required Columns:</h4>
+                <div class="req-items">
+                    <div class="req-item">
+                        <span class="req-label">CSV:</span>
+                        <code>Location</code>
+                    </div>
+                    <div class="req-item">
+                        <span class="req-label">Excel:</span>
+                        <code>Container Tag</code>, <code>Current Location</code>
+                    </div>
+                </div>
+            </div>
+        </main>
+        
+        <footer>
+            <div class="buttons">
+                <button class="btn btn-cancel" id="cancel-btn" onclick="cancel()">Cancel</button>
+                <button class="btn btn-ok" id="ok-btn" onclick="processFiles()" disabled>OK</button>
+            </div>
+        </footer>
+    </div>
+    
+    <script src="wails/ipc.js"></script>
+    <script src="wails/runtime.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
