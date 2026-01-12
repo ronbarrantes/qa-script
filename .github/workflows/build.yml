@@ -1,7 +1,11 @@
 name: Build Cross-Platform
 
 on:
-  # Manual trigger only - click "Run workflow" button in GitHub Actions UI
+  # Automatic: Build on pull requests to main
+  pull_request:
+    branches: [main]
+  
+  # Manual: Click "Run workflow" anytime you need fresh artifacts
   workflow_dispatch:
 
 jobs:
