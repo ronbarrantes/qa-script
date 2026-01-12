@@ -38,7 +38,7 @@ go build -o qa-script .
 ./qa-script -csv locations.csv -excel containers.xlsx
 ```
 
-Output will be saved as `locations_20260111_143022.xlsx` (with current timestamp).
+Output will be saved as `locations_260111_143022.xlsx` (with current timestamp).
 
 ### Generate Template
 
