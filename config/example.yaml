@@ -2,26 +2,36 @@
 #
 # This file defines how locations are grouped in the output Excel.
 #
+# LOCATION FORMAT:
+# Locations follow the format PREFIX:CODE (e.g., "SS4:GF225.B")
+# - PREFIX (before colon): Preserved in output but ignored for grouping/sorting
+# - CODE (after colon): Used for grouping and sorting (e.g., "GF225.B")
+#
 # OUTPUT FORMAT:
+# - Output is written to a sheet named "Groups"
 # - Each group becomes a column (or multiple columns if items exceed 'size')
 # - Groups are separated by blank columns
-# - Headers repeat for each spilled column
-# - Locations matching QA_HOLD_PICKING from Excel are highlighted yellow
+# - Headers repeat for each spilled column (with bold text, gray background)
+# - Locations with QA_HOLD_PICKING status (from optional Excel input) are highlighted yellow
+# - Unmatched locations appear in an "unmatched" column at the end
 # - Output file is auto-named: p1_<timestamp>.xlsx
 #
 # Example output with size: 3 and 5 items in "e - g":
 #
-#   | pallets |   | e - g | e - g |   | h - k | ...
-#   |---------|---|-------|-------|---|-------|
-#   | AB215   |   | EN15  | GF253 |   | HA101 |
-#   | LUD86   |   | EN333 | GC111 |   | JB202 |
-#   | CS121   |   | GFT31 |       |   |       |
+#   | pallets     |   | e - g       | e - g       |   | h - k       |
+#   |-------------|---|-------------|-------------|---|-------------|
+#   | PS1:AB215   |   | SS4:EN15.A  | SS4:GF253.B |   | PS2:HA101   |
+#   | PS1:LUD86   |   | SS4:EN333.C | SS4:GC111.A |   | PS2:JB202   |
+#   | SS2:CS121.A |   | SS4:GFT31.A |             |   |             |
 #
 # VALUES MATCHING:
-# - Single letter (e.g., "a"): matches any code starting with that letter
-#   Example: "a" matches AB215, AC100, etc.
-# - Multi-letter (e.g., "lud", "gft"): exact match for 3-letter codes
-#   Example: "lud" matches LUD86, "gft" matches GFT31
+# The CODE portion (after the colon) has a letter prefix used for matching.
+#
+# - Single letter (e.g., "a"): matches any code whose letter prefix starts with that letter
+#   Example: "a" matches SS4:AB215 (letter prefix "AB" starts with "A")
+# - Multi-letter (e.g., "lud", "gft"): exact match for the full letter prefix
+#   Example: "lud" matches PS1:LUD86 (letter prefix "LUD")
+#   Example: "gft" matches SS4:GFT31.A (letter prefix "GFT") but NOT SS4:GF225.B ("GF")
 
 groups:
   - name: pallets
