@@ -330,7 +330,7 @@ func (a *App) ProcessFiles() map[string]interface{} {
 	}
 
 	// Generate output file path (in same directory as CSV)
-	outputFile := filepath.Join(csvDir, fmt.Sprintf("p1_%s.xlsx", time.Now().Format("20060102_150405")))
+	outputFile := filepath.Join(csvDir, fmt.Sprintf("locations_%s.xlsx", time.Now().Format("20060102_150405")))
 
 	// Write grouped output
 	if err := merger.WriteGroupedExcel(outputFile, cfg, locations, highlight); err != nil {

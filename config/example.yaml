@@ -14,7 +14,7 @@
 # - Headers repeat for each spilled column (with bold text, gray background)
 # - Locations with QA_HOLD_PICKING status (from optional Excel input) are highlighted yellow
 # - Unassigned locations (not matching any group) appear in an "unassigned" column at the end
-# - Output file is auto-named: p1_<timestamp>.xlsx
+# - Output file is auto-named: locations_<timestamp>.xlsx
 #
 # Example output with size: 3 and 5 items in "e - g":
 #
