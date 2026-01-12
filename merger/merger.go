@@ -150,7 +150,7 @@ func WriteGroupedExcel(outputPath string, cfg *config.Config, locations []string
 		}
 		for c := 0; c < colsUsed; c++ {
 			cell, _ := excelize.CoordinatesToCellName(colStart+c, 1)
-			f.SetCellValue(sheetName, cell, "unmatched")
+			f.SetCellValue(sheetName, cell, "unassigned")
 			f.SetCellStyle(sheetName, cell, cell, headerStyle)
 		}
 		for i, loc := range unmatched {

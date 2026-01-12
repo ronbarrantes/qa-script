@@ -16,7 +16,7 @@ A Go tool that reads location data from a CSV file, groups locations based on co
 - **Optional** Excel input to highlight locations with `QA_HOLD_PICKING` container tags
 - Validation: Excel locations must be a subset of CSV locations
 - Auto-generate YAML templates from CSV data
-- Timestamped output files (`p1_<timestamp>.xlsx`)
+- Timestamped output files (`locations_<timestamp>.xlsx`)
 
 ## Installation
 
@@ -38,7 +38,7 @@ go build -o qa-script .
 ./qa-script -csv locations.csv -excel containers.xlsx
 ```
 
-Output will be saved as `p1_20260111_143022.xlsx` (with current timestamp).
+Output will be saved as `locations_260111_143022.xlsx` (with current timestamp).
 
 ### Generate Template
 
@@ -60,7 +60,7 @@ Or generate an empty template:
 |------|-------------|---------|
 | `-csv` | Path to the CSV file (must have a "Location" column) | (required) |
 | `-excel` | Path to the Excel file (optional, for highlighting) | (none) |
-| `-output` | Path for the output Excel file | `p1_<timestamp>.xlsx` |
+| `-output` | Path for the output Excel file | `locations_<timestamp>.xlsx` |
 | `-template` | Path to the YAML template file | `template.yaml` |
 | `-generate-template` | Generate a YAML template file | `false` |
 
@@ -120,7 +120,7 @@ Location codes follow the format `PREFIX:CODE` (e.g., `SS4:GF225.B`). The `PREFI
 - Groups are separated by blank columns
 - Headers repeat for each spilled column
 - Locations matching `QA_HOLD_PICKING` from the input Excel are highlighted yellow (if Excel provided)
-- Unmatched locations appear in an "unmatched" column at the end
+- Unassigned locations (not matching any group) appear in an "unassigned" column at the end
 
 **Example output with `size: 3`:**
 

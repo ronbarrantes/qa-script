@@ -17,7 +17,7 @@ func main() {
 	// Define command-line flags
 	csvFile := flag.String("csv", "", "Path to the CSV file")
 	excelFile := flag.String("excel", "", "Path to the Excel file")
-	defaultOutput := fmt.Sprintf("p1_%s.xlsx", time.Now().Format("20060102_150405"))
+	defaultOutput := fmt.Sprintf("locations_%s.xlsx", time.Now().Format("060102_150405"))
 	outputFile := flag.String("output", defaultOutput, "Path for the output Excel file")
 	templateFile := flag.String("template", "template.yaml", "Path to the YAML template file")
 	generateTemplate := flag.Bool("generate-template", false, "Generate a YAML template file")
