@@ -7,9 +7,14 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 	"github.com/xuri/excelize/v2"
+
+	"qa-script/config"
+	"qa-script/merger"
+	"qa-script/parser"
 )
 
 // App struct
@@ -207,18 +212,139 @@ func (a *App) ClearExcel() {
 // ProcessFiles initiates the file processing and returns the result
 func (a *App) ProcessFiles() map[string]interface{} {
 	result := make(map[string]interface{})
-	
+
 	if !a.csvValidated {
 		result["success"] = false
 		result["error"] = "CSV file not validated. Please drop a valid CSV file."
 		return result
 	}
 
+	// Parse CSV file
+	csvData, err := parser.ParseCSV(a.csvPath)
+	if err != nil {
+		result["success"] = false
+		result["error"] = fmt.Sprintf("Error parsing CSV: %v", err)
+		return result
+	}
+
+	locations, err := csvData.GetUniqueColumnValues("Location")
+	if err != nil {
+		result["success"] = false
+		result["error"] = fmt.Sprintf("Error reading Location column: %v", err)
+		return result
+	}
+
+	// Build a lookup set for CSV locations (normalized to uppercase)
+	csvLocationSet := make(map[string]struct{}, len(locations))
+	for _, loc := range locations {
+		csvLocationSet[strings.ToUpper(strings.TrimSpace(loc))] = struct{}{}
+	}
+
+	// Determine template file path (in same directory as CSV)
+	csvDir := filepath.Dir(a.csvPath)
+	templateFile := filepath.Join(csvDir, "template.yaml")
+
+	// Check if template exists, if not create it seeded from CSV
+	if _, err := os.Stat(templateFile); os.IsNotExist(err) {
+		genCfg := &config.Config{
+			Size:   20,
+			Groups: merger.BuildDefaultGroupsFromLocations(locations),
+		}
+		if err := config.SaveConfig(genCfg, templateFile); err != nil {
+			result["success"] = false
+			result["error"] = fmt.Sprintf("Error generating template: %v", err)
+			return result
+		}
+	}
+
+	// Load the template configuration
+	cfg, err := config.LoadConfig(templateFile)
+	if err != nil {
+		result["success"] = false
+		result["error"] = fmt.Sprintf("Error loading config: %v", err)
+		return result
+	}
+
+	// Build highlight set from Excel (if provided)
+	highlight := make(map[string]struct{})
+
+	if a.excelPath != "" && a.excelValidated {
+		excelData, err := parser.ParseExcel(a.excelPath, "")
+		if err != nil {
+			result["success"] = false
+			result["error"] = fmt.Sprintf("Error parsing Excel: %v", err)
+			return result
+		}
+
+		// Only process if Excel has data rows
+		if len(excelData.Rows) > 0 {
+			tagIdx := excelData.GetColumnIndex("Container Tag")
+			locIdx := excelData.GetColumnIndex("Current Location")
+			if tagIdx == -1 {
+				result["success"] = false
+				result["error"] = "Excel column 'Container Tag' not found"
+				return result
+			}
+			if locIdx == -1 {
+				result["success"] = false
+				result["error"] = "Excel column 'Current Location' not found"
+				return result
+			}
+
+			// Validate that all Excel "Current Location" values exist in CSV locations
+			var invalidLocations []string
+			for _, row := range excelData.Rows {
+				if locIdx >= len(row) {
+					continue
+				}
+				loc := strings.ToUpper(strings.TrimSpace(row[locIdx]))
+				if loc == "" {
+					continue
+				}
+				if _, exists := csvLocationSet[loc]; !exists {
+					invalidLocations = append(invalidLocations, row[locIdx])
+				}
+			}
+			if len(invalidLocations) > 0 {
+				result["success"] = false
+				result["error"] = fmt.Sprintf("Invalid Excel file: the following 'Current Location' values are not in the CSV locations: %v", invalidLocations)
+				return result
+			}
+
+			// Build highlight set: locations where Container Tag == QA_HOLD_PICKING
+			for _, row := range excelData.Rows {
+				if tagIdx >= len(row) {
+					continue
+				}
+				if strings.TrimSpace(row[tagIdx]) != "QA_HOLD_PICKING" {
+					continue
+				}
+				if locIdx < len(row) {
+					v := strings.ToUpper(strings.TrimSpace(row[locIdx]))
+					if v != "" {
+						highlight[v] = struct{}{}
+					}
+				}
+			}
+		}
+	}
+
+	// Generate output file path (in same directory as CSV)
+	outputFile := filepath.Join(csvDir, fmt.Sprintf("p1_%s.xlsx", time.Now().Format("20060102_150405")))
+
+	// Write grouped output
+	if err := merger.WriteGroupedExcel(outputFile, cfg, locations, highlight); err != nil {
+		result["success"] = false
+		result["error"] = fmt.Sprintf("Error writing output: %v", err)
+		return result
+	}
+
 	result["success"] = true
 	result["csvPath"] = a.csvPath
 	result["excelPath"] = a.excelPath
-	result["message"] = "Files ready for processing"
-	
+	result["outputPath"] = outputFile
+	result["message"] = fmt.Sprintf("Output saved to: %s", outputFile)
+
 	return result
 }
 
