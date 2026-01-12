@@ -76,12 +76,8 @@ function initDragDrop() {
             // Get the file path - Wails provides it via the path property
             let filePath = file.path || file.name;
             
-            // On Windows, paths might have backslashes
-            if (filePath) {
-                await handleFileDrop(type, filePath);
-            } else {
-                showError(zone, type, 'Could not read file path. Please use the Browse button.');
-            }
+            // Proceed with whatever path we have
+            await handleFileDrop(type, filePath);
         });
         
         // Click to open file dialog (on the zone itself, not the browse button which has its own handler)
