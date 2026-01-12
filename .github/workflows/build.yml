@@ -1,13 +1,7 @@
 name: Build Cross-Platform
 
 on:
-  # Trigger on push to main or any branch
-  push:
-    branches: ['*']
-  # Trigger on pull requests
-  pull_request:
-    branches: [main]
-  # Allow manual trigger from GitHub UI
+  # Manual trigger only - click "Run workflow" button in GitHub Actions UI
   workflow_dispatch:
 
 jobs:
