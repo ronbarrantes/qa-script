@@ -1,0 +1,144 @@
+name: Build Cross-Platform
+
+on:
+  # Trigger on push to main or any branch
+  push:
+    branches: ['*']
+  # Trigger on pull requests
+  pull_request:
+    branches: [main]
+  # Allow manual trigger from GitHub UI
+  workflow_dispatch:
+
+jobs:
+  # Build the CLI tool for all platforms
+  build-cli:
+    name: Build CLI - ${{ matrix.os }}
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - os: windows
+            goos: windows
+            goarch: amd64
+            ext: .exe
+          - os: linux
+            goos: linux
+            goarch: amd64
+            ext: ''
+          - os: macos
+            goos: darwin
+            goarch: amd64
+            ext: ''
+          - os: macos-arm
+            goos: darwin
+            goarch: arm64
+            ext: ''
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+
+      - name: Build CLI
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          CGO_ENABLED: 0
+        run: |
+          go build -o qa-script-${{ matrix.os }}${{ matrix.ext }} .
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: qa-script-cli-${{ matrix.os }}
+          path: qa-script-${{ matrix.os }}${{ matrix.ext }}
+
+  # Build the Wails GUI app for all platforms
+  build-gui-windows:
+    name: Build GUI - Windows
+    runs-on: windows-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+
+      - name: Install Wails
+        run: go install github.com/wailsapp/wails/v2/cmd/wails@latest
+
+      - name: Build Windows GUI
+        working-directory: gui
+        run: wails build -platform windows/amd64
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: qa-script-gui-windows
+          path: gui/build/bin/*.exe
+
+  build-gui-linux:
+    name: Build GUI - Linux
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+
+      - name: Install Linux dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.0-dev
+
+      - name: Install Wails
+        run: go install github.com/wailsapp/wails/v2/cmd/wails@latest
+
+      - name: Build Linux GUI
+        working-directory: gui
+        run: wails build -platform linux/amd64
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: qa-script-gui-linux
+          path: gui/build/bin/*
+
+  build-gui-macos:
+    name: Build GUI - macOS
+    runs-on: macos-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+
+      - name: Install Wails
+        run: go install github.com/wailsapp/wails/v2/cmd/wails@latest
+
+      - name: Build macOS GUI (Intel)
+        working-directory: gui
+        run: wails build -platform darwin/amd64
+
+      - name: Build macOS GUI (Apple Silicon)
+        working-directory: gui
+        run: wails build -platform darwin/arm64
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: qa-script-gui-macos
+          path: gui/build/bin/*
