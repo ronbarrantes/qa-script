@@ -135,22 +135,6 @@ func (lc LocationCode) MatchesGroupValue(groupValue string) bool {
 	return lc.Letters == groupValue
 }
 
-// KnownMatchingGroups defines 3-letter codes that are known matching groups.
-// These can be added to any of the groups they match.
-var KnownMatchingGroups = []string{
-	"PRM", "LUD", "SLP", "MEZ", "GFT", "HVC", "HWK",
-}
-
-// IsKnownMatchingGroup checks if the letters form a known matching group.
-func (lc LocationCode) IsKnownMatchingGroup() bool {
-	for _, mg := range KnownMatchingGroups {
-		if lc.Letters == mg {
-			return true
-		}
-	}
-	return false
-}
-
 // SortLocations sorts a slice of location strings by their sort key (after the colon).
 // The sort is case-insensitive and handles alphanumeric codes intelligently.
 func SortLocations(locations []string) []string {
@@ -197,45 +181,6 @@ func parseNumber(s string) int {
 		}
 	}
 	return n
-}
-
-// GroupMatcher provides methods to match locations to groups based on rules.
-type GroupMatcher struct {
-	// MatchingGroupBehavior defines how 3-letter matching groups are handled.
-	// "first": Assign to the first matching group only
-	// "all": Can be assigned to all matching groups (duplicated)
-	// "dedicated": Only match dedicated 3-letter group definitions
-	MatchingGroupBehavior string
-}
-
-// DefaultGroupMatcher returns a GroupMatcher with default settings.
-func DefaultGroupMatcher() *GroupMatcher {
-	return &GroupMatcher{
-		MatchingGroupBehavior: "first",
-	}
-}
-
-// FindMatchingGroups returns all group indices that a location could belong to.
-// groupValues is a slice where each element is a slice of values for that group.
-func (gm *GroupMatcher) FindMatchingGroups(location string, groupValues [][]string) []int {
-	lc := ParseLocation(location)
-	var matches []int
-
-	for gi, values := range groupValues {
-		for _, v := range values {
-			if lc.MatchesGroupValue(v) {
-				matches = append(matches, gi)
-				break
-			}
-		}
-	}
-
-	// Apply matching group behavior
-	if lc.IsMatchingGroup() && gm.MatchingGroupBehavior == "first" && len(matches) > 1 {
-		return matches[:1]
-	}
-
-	return matches
 }
 
 // ExtractLetterCode is a helper that returns just the letter portion of a location.

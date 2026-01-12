@@ -16,18 +16,12 @@ func normalizeLocation(s string) string {
 	return strings.ToUpper(strings.TrimSpace(s))
 }
 
-// ExtractLocationCode returns the location code portion used for grouping (e.g. "HVC" from ":HVC12").
-// This is a wrapper around rules.ExtractLetterCode for backward compatibility.
-func ExtractLocationCode(location string) (string, bool) {
-	return rules.ExtractLetterCode(location)
-}
-
 // BuildDefaultGroupsFromLocations creates one group per discovered code, useful for template generation.
 func BuildDefaultGroupsFromLocations(locations []string) []config.Group {
 	seen := map[string]struct{}{}
 	var codes []string
 	for _, loc := range locations {
-		if code, ok := ExtractLocationCode(loc); ok {
+		if code, ok := rules.ExtractLetterCode(loc); ok {
 			if _, exists := seen[code]; !exists {
 				seen[code] = struct{}{}
 				codes = append(codes, code)
