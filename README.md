@@ -2,6 +2,12 @@
 
 A Go tool that reads location data from a CSV file, groups locations based on configurable rules, and outputs a formatted Excel file. Optionally, locations matching `QA_HOLD_PICKING` status from an input Excel file can be highlighted in yellow.
 
+## Download
+
+**For most users:** Download the **GUI version** (`qa-script-gui`) - it's a self-contained desktop application with all processing built-in. Just download, run, and drag-and-drop your files. See [gui/README.md](gui/README.md) for details.
+
+**For advanced users/automation:** The CLI version (`qa-script`) is available for command-line usage and scripting.
+
 ## Features
 
 - Parse CSV files to extract location codes

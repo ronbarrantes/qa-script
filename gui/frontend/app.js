@@ -237,20 +237,27 @@ async function processFiles() {
         return;
     }
     
+    // Disable button and show processing state
+    okBtn.disabled = true;
+    okBtn.textContent = 'Processing...';
+    
     try {
         const result = await window.go.main.App.ProcessFiles();
         
         if (result.success) {
-            // Emit event with file paths for the parent application
-            console.log('Processing files:', result);
-            // The main application will handle the rest
+            // Show success message with output path
+            alert('Success!\n\nOutput saved to:\n' + result.outputPath);
             window.runtime.Quit();
         } else {
             alert('Error: ' + result.error);
+            okBtn.disabled = false;
+            okBtn.textContent = 'OK';
         }
     } catch (error) {
         console.error('Error processing files:', error);
         alert('Error processing files: ' + error.message);
+        okBtn.disabled = false;
+        okBtn.textContent = 'OK';
     }
 }
 

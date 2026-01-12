@@ -7,7 +7,10 @@ toolchain go1.22.2
 require (
 	github.com/wailsapp/wails/v2 v2.11.0
 	github.com/xuri/excelize/v2 v2.8.1
+	qa-script v0.0.0
 )
+
+replace qa-script => ../
 
 require (
 	github.com/bep/debounce v1.2.1 // indirect
@@ -42,4 +45,5 @@ require (
 	golang.org/x/net v0.35.0 // indirect
 	golang.org/x/sys v0.30.0 // indirect
 	golang.org/x/text v0.22.0 // indirect
+	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
