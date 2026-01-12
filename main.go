@@ -6,7 +6,16 @@ import (
 	"log"
 	"os"
 	"sort"
+	"strings"
 )
+
+// getSortKey extracts the part after the colon for sorting
+func getSortKey(location string) string {
+	if idx := strings.Index(location, ":"); idx != -1 {
+		return location[idx+1:]
+	}
+	return location
+}
 
 func main() {
 	// Open the CSV file
@@ -46,12 +55,14 @@ func main() {
 		locationSet[location] = struct{}{}
 	}
 
-	// Convert set to sorted slice
+	// Convert set to sorted slice (sort by part after colon)
 	locations := make([]string, 0, len(locationSet))
 	for loc := range locationSet {
 		locations = append(locations, loc)
 	}
-	sort.Strings(locations)
+	sort.Slice(locations, func(i, j int) bool {
+		return getSortKey(locations[i]) < getSortKey(locations[j])
+	})
 
 	// Log the unique sorted locations
 	fmt.Println("=== Unique Locations (sorted) ===")
