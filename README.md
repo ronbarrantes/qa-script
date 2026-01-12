@@ -120,7 +120,7 @@ Location codes follow the format `PREFIX:CODE` (e.g., `SS4:GF225.B`). The `PREFI
 - Groups are separated by blank columns
 - Headers repeat for each spilled column
 - Locations matching `QA_HOLD_PICKING` from the input Excel are highlighted yellow (if Excel provided)
-- Unmatched locations appear in an "unmatched" column at the end
+- Unassigned locations (not matching any group) appear in an "unassigned" column at the end
 
 **Example output with `size: 3`:**
 
