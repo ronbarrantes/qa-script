@@ -42,6 +42,9 @@ jobs:
         with:
           go-version: '1.21'
 
+      - name: Clean old builds
+        run: rm -f qa-script-*
+
       - name: Build CLI
         env:
           GOOS: ${{ matrix.goos }}
@@ -71,6 +74,12 @@ jobs:
 
       - name: Install Wails
         run: go install github.com/wailsapp/wails/v2/cmd/wails@latest
+
+      - name: Clean old builds
+        working-directory: gui
+        run: |
+          if (Test-Path "build/bin") { Remove-Item -Recurse -Force "build/bin/*" -ErrorAction SilentlyContinue }
+        shell: pwsh
 
       - name: Build Windows GUI
         working-directory: gui
@@ -102,6 +111,10 @@ jobs:
       - name: Install Wails
         run: go install github.com/wailsapp/wails/v2/cmd/wails@latest
 
+      - name: Clean old builds
+        working-directory: gui
+        run: make clean
+
       - name: Build Linux GUI
         working-directory: gui
         run: wails build -platform linux/amd64
@@ -126,6 +139,10 @@ jobs:
 
       - name: Install Wails
         run: go install github.com/wailsapp/wails/v2/cmd/wails@latest
+
+      - name: Clean old builds
+        working-directory: gui
+        run: make clean
 
       - name: Build macOS GUI (Intel)
         working-directory: gui
