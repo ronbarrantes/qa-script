@@ -5,6 +5,7 @@ import (
 	"log"
 	"sort"
 
+	"qa-script/output"
 	"qa-script/processor"
 )
 
@@ -69,4 +70,11 @@ func main() {
 			fmt.Printf("  - %s\n", loc)
 		}
 	}
+
+	// Write to CSV
+	outputPath := "output.csv"
+	if err := output.WriteCSV(outputPath, result.TitleOrder, result.TitleGroupedLocations); err != nil {
+		log.Fatal(err)
+	}
+	fmt.Printf("\n=== Output written to %s ===\n", outputPath)
 }
