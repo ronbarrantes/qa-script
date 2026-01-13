@@ -164,6 +164,11 @@ func cleanFilePath(path string) string {
 	// Remove file:// prefix
 	if strings.HasPrefix(path, "file://") {
 		path = strings.TrimPrefix(path, "file://")
+		// On Windows, file URIs have form file:///C:/path/to/file
+		// After trimming file://, we get /C:/path - need to remove the leading /
+		if len(path) > 2 && path[0] == '/' && path[2] == ':' {
+			path = path[1:]
+		}
 	}
 	// URL decode common characters
 	path = strings.ReplaceAll(path, "%20", " ")
