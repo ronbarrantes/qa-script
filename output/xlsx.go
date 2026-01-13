@@ -21,8 +21,8 @@ func WriteXLSX(filePath string, data *OutputData) error {
 
 	// Create styles
 	headerStyle, err := f.NewStyle(&excelize.Style{
-		Font:      &excelize.Font{Bold: true},
-		Fill:      excelize.Fill{Type: "pattern", Color: []string{"#DDDDDD"}, Pattern: 1},
+		Font:      &excelize.Font{Bold: true, Color: "#FFFFFF"},
+		Fill:      excelize.Fill{Type: "pattern", Color: []string{"#333333"}, Pattern: 1},
 		Alignment: &excelize.Alignment{Horizontal: "center"},
 	})
 	if err != nil {
