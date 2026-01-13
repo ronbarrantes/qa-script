@@ -145,3 +145,39 @@ func TestCSVData_GetColumnValues_ShortRows(t *testing.T) {
 		t.Errorf("GetColumnValues(C) = %v, want %v", values, expected)
 	}
 }
+
+func TestParseCSV_TrimsWhitespace(t *testing.T) {
+	// Create a CSV file with extra whitespace in headers and values
+	content := `  Name  , Location ,Status  
+  Item1  ,  SS4:AB100  ,  Active  
+Item2   ,PS2:CL200  , Inactive`
+
+	tmpDir := t.TempDir()
+	tmpFile := filepath.Join(tmpDir, "whitespace.csv")
+	if err := os.WriteFile(tmpFile, []byte(content), 0644); err != nil {
+		t.Fatalf("failed to write temp file: %v", err)
+	}
+
+	csv, err := ParseCSV(tmpFile)
+	if err != nil {
+		t.Fatalf("ParseCSV failed: %v", err)
+	}
+
+	// Check headers are trimmed
+	expectedHeaders := []string{"Name", "Location", "Status"}
+	if !reflect.DeepEqual(csv.Headers, expectedHeaders) {
+		t.Errorf("Headers = %v, want %v", csv.Headers, expectedHeaders)
+	}
+
+	// Check first row values are trimmed
+	expectedRow1 := []string{"Item1", "SS4:AB100", "Active"}
+	if !reflect.DeepEqual(csv.Rows[0], expectedRow1) {
+		t.Errorf("Rows[0] = %v, want %v", csv.Rows[0], expectedRow1)
+	}
+
+	// Check second row values are trimmed
+	expectedRow2 := []string{"Item2", "PS2:CL200", "Inactive"}
+	if !reflect.DeepEqual(csv.Rows[1], expectedRow2) {
+		t.Errorf("Rows[1] = %v, want %v", csv.Rows[1], expectedRow2)
+	}
+}

@@ -177,3 +177,37 @@ func TestExcelData_GetColumnValues_ShortRows(t *testing.T) {
 		t.Errorf("GetColumnValues(C) = %v, want %v", values, expected)
 	}
 }
+
+func TestParseExcel_TrimsWhitespace(t *testing.T) {
+	// Create Excel with whitespace in headers and values
+	data := [][]string{
+		{"  Name  ", " Location ", "Status  "},
+		{"  Item1  ", "  SS4:AB100  ", "  Active  "},
+		{"Item2   ", "PS2:CL200  ", " Inactive"},
+	}
+
+	tmpFile := createTestExcel(t, "TestSheet", data)
+
+	excel, err := ParseExcel(tmpFile, "TestSheet")
+	if err != nil {
+		t.Fatalf("ParseExcel failed: %v", err)
+	}
+
+	// Check headers are trimmed
+	expectedHeaders := []string{"Name", "Location", "Status"}
+	if !reflect.DeepEqual(excel.Headers, expectedHeaders) {
+		t.Errorf("Headers = %v, want %v", excel.Headers, expectedHeaders)
+	}
+
+	// Check first row values are trimmed
+	expectedRow1 := []string{"Item1", "SS4:AB100", "Active"}
+	if !reflect.DeepEqual(excel.Rows[0], expectedRow1) {
+		t.Errorf("Rows[0] = %v, want %v", excel.Rows[0], expectedRow1)
+	}
+
+	// Check second row values are trimmed
+	expectedRow2 := []string{"Item2", "PS2:CL200", "Inactive"}
+	if !reflect.DeepEqual(excel.Rows[1], expectedRow2) {
+		t.Errorf("Rows[1] = %v, want %v", excel.Rows[1], expectedRow2)
+	}
+}

@@ -4,6 +4,7 @@ import (
 	"encoding/csv"
 	"fmt"
 	"os"
+	"strings"
 )
 
 // CSVData represents parsed CSV data with headers and rows
@@ -31,10 +32,28 @@ func ParseCSV(filePath string) (*CSVData, error) {
 		return nil, fmt.Errorf("CSV file is empty")
 	}
 
+	// Trim whitespace from headers
+	headers := trimStringSlice(records[0])
+
+	// Trim whitespace from all row values
+	rows := make([][]string, len(records)-1)
+	for i, row := range records[1:] {
+		rows[i] = trimStringSlice(row)
+	}
+
 	return &CSVData{
-		Headers: records[0],
-		Rows:    records[1:],
+		Headers: headers,
+		Rows:    rows,
 	}, nil
+}
+
+// trimStringSlice trims leading and trailing whitespace from all strings in a slice
+func trimStringSlice(slice []string) []string {
+	result := make([]string, len(slice))
+	for i, s := range slice {
+		result[i] = strings.TrimSpace(s)
+	}
+	return result
 }
 
 // GetColumnIndex returns the index of a column by name, or -1 if not found

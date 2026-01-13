@@ -36,9 +36,18 @@ func ParseExcel(filePath string, sheetName string) (*ExcelData, error) {
 		return nil, fmt.Errorf("sheet %q is empty", sheetName)
 	}
 
+	// Trim whitespace from headers
+	headers := trimStringSlice(rows[0])
+
+	// Trim whitespace from all row values
+	dataRows := make([][]string, len(rows)-1)
+	for i, row := range rows[1:] {
+		dataRows[i] = trimStringSlice(row)
+	}
+
 	return &ExcelData{
-		Headers: rows[0],
-		Rows:    rows[1:],
+		Headers: headers,
+		Rows:    dataRows,
 		Sheet:   sheetName,
 	}, nil
 }
