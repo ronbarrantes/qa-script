@@ -67,16 +67,28 @@ Options:
 - Go 1.21+
 - [Wails CLI](https://wails.io/docs/gettingstarted/installation) (for GUI)
 
-### Linux Dependencies (Ubuntu/Debian)
+### Linux Dependencies
 
-On Linux, you need GTK3 and WebKit2GTK development libraries:
+On Linux, you need GTK3 and WebKit2GTK libraries to build and run the GUI.
 
+**Arch Linux:**
 ```bash
-# Ubuntu 24.04+ (uses webkit2gtk-4.1)
-sudo apt install libgtk-3-dev libwebkit2gtk-4.1-dev
+sudo pacman -S gtk3 webkit2gtk-4.1
+```
 
-# Ubuntu 22.04 or older (uses webkit2gtk-4.0)
+**Ubuntu/Debian 24.04+:**
+```bash
+sudo apt install libgtk-3-dev libwebkit2gtk-4.1-dev
+```
+
+**Ubuntu/Debian 22.04 or older:**
+```bash
 sudo apt install libgtk-3-dev libwebkit2gtk-4.0-dev
+```
+
+**Fedora:**
+```bash
+sudo dnf install gtk3-devel webkit2gtk4.1-devel
 ```
 
 ### Build Commands
@@ -101,6 +113,28 @@ After building, the binary is located at:
 ```bash
 ./cmd/gui/build/bin/qa-gui
 ```
+
+### Troubleshooting Linux GUI
+
+If you get errors when running the GUI, check:
+
+1. **Missing libraries** - Make sure you have the runtime dependencies installed:
+   ```bash
+   # Arch Linux
+   pacman -S gtk3 webkit2gtk-4.1
+   
+   # Ubuntu/Debian
+   apt install libgtk-3-0 libwebkit2gtk-4.1-0
+   ```
+
+2. **Wrong webkit version** - The GUI is built for `webkit2gtk-4.1`. If you're on an older distro with only `webkit2gtk-4.0`, you'll need to rebuild from source without the `webkit2_41` tag.
+
+3. **Display server issues** - Make sure you're running in a graphical environment (X11 or Wayland).
+
+4. **Check what's missing** with `ldd`:
+   ```bash
+   ldd ./cmd/gui/build/bin/qa-gui | grep "not found"
+   ```
 
 ## License
 
