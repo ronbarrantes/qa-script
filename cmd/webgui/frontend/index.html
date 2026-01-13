@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QA Location Grouper</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>QA Location Grouper</h1>
+        <p class="subtitle">Drag and drop files or click to browse</p>
+        
+        <div class="drop-zones">
+            <div class="drop-zone" id="locations-zone">
+                <div class="drop-icon">📄</div>
+                <div class="drop-label">Locations CSV</div>
+                <div class="drop-hint">Drop .csv file here</div>
+                <div class="file-name" id="locations-file"></div>
+                <input type="file" id="locations-input" accept=".csv" style="display: none">
+            </div>
+            
+            <div class="drop-zone" id="priorities-zone">
+                <div class="drop-icon">📊</div>
+                <div class="drop-label">Priorities XLSX</div>
+                <div class="drop-hint">Drop .xlsx file here</div>
+                <div class="file-name" id="priorities-file"></div>
+                <input type="file" id="priorities-input" accept=".xlsx" style="display: none">
+            </div>
+        </div>
+        
+        <div class="status" id="status"></div>
+        
+        <div class="buttons">
+            <button class="btn btn-secondary" id="reset-btn" onclick="resetFiles()">Reset</button>
+            <button class="btn btn-primary" id="ok-btn" onclick="processFiles()" disabled>OK</button>
+        </div>
+        
+        <div class="info-text">
+            <p>This application runs as a local web server. Drag and drop works natively in your browser.</p>
+            <p>Close this tab or press the button below when finished.</p>
+            <button class="btn btn-small" onclick="shutdown()">Exit Application</button>
+        </div>
+    </div>
+    
+    <script src="app.js"></script>
+</body>
+</html>
