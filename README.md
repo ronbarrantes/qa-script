@@ -67,6 +67,18 @@ Options:
 - Go 1.21+
 - [Wails CLI](https://wails.io/docs/gettingstarted/installation) (for GUI)
 
+### Linux Dependencies (Ubuntu/Debian)
+
+On Linux, you need GTK3 and WebKit2GTK development libraries:
+
+```bash
+# Ubuntu 24.04+ (uses webkit2gtk-4.1)
+sudo apt install libgtk-3-dev libwebkit2gtk-4.1-dev
+
+# Ubuntu 22.04 or older (uses webkit2gtk-4.0)
+sudo apt install libgtk-3-dev libwebkit2gtk-4.0-dev
+```
+
 ### Build Commands
 
 ```bash
@@ -76,8 +88,18 @@ make build-cli
 # GUI (current platform)
 make build-gui
 
+# GUI for Linux specifically (includes webkit2gtk-4.1 support)
+make build-gui-linux
+
 # Run tests
 make test
+```
+
+### Running the GUI
+
+After building, the binary is located at:
+```bash
+./cmd/gui/build/bin/qa-gui
 ```
 
 ## License
