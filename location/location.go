@@ -29,9 +29,13 @@ func UniqueAndSort(locations []string) []string {
 		unique = append(unique, loc)
 	}
 
-	// Sort by the part after the colon
+	// Sort by the part after the colon, with full string as secondary key for ties
 	sort.Slice(unique, func(i, j int) bool {
-		return GetSortKey(unique[i]) < GetSortKey(unique[j])
+		keyI, keyJ := GetSortKey(unique[i]), GetSortKey(unique[j])
+		if keyI == keyJ {
+			return unique[i] < unique[j] // Secondary sort by full string for deterministic ordering
+		}
+		return keyI < keyJ
 	})
 
 	return unique
