@@ -11,11 +11,12 @@ import (
 
 // Result holds the processed data from both files
 type Result struct {
-	Locations         []string                 // Unique sorted locations from CSV
-	PriorityLocations []string                 // Unique sorted locations with QA_HOLD_PICKING
-	GroupedLocations  rules.GroupedLocations   // Locations grouped by rules
-	TotalCSVRows      int
-	TotalExcelRows    int
+	Locations              []string                      // Unique sorted locations from CSV
+	PriorityLocations      []string                      // Unique sorted locations with QA_HOLD_PICKING
+	GroupedLocations       rules.GroupedLocations        // Locations grouped by rule values (a, b, gft, etc.)
+	TitleGroupedLocations  rules.TitleGroupedLocations   // Locations grouped by titles (pallets, efg, etc.)
+	TotalCSVRows           int
+	TotalExcelRows         int
 }
 
 // LoadLocations reads the CSV file and returns unique sorted locations
@@ -90,12 +91,14 @@ func Process(csvPath, excelPath, rulesPath string) (*Result, error) {
 	}
 
 	grouped := rules.GroupLocations(locations, config)
+	titleGrouped := rules.GroupByTitle(grouped, config)
 
 	return &Result{
-		Locations:         locations,
-		PriorityLocations: priorities,
-		GroupedLocations:  grouped,
-		TotalCSVRows:      csvRows,
-		TotalExcelRows:    excelRows,
+		Locations:              locations,
+		PriorityLocations:      priorities,
+		GroupedLocations:       grouped,
+		TitleGroupedLocations:  titleGrouped,
+		TotalCSVRows:           csvRows,
+		TotalExcelRows:         excelRows,
 	}, nil
 }

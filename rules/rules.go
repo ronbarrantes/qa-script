@@ -143,3 +143,35 @@ func (g GroupedLocations) GetNonEmptyGroups() GroupedLocations {
 	}
 	return result
 }
+
+// TitleGroupedLocations maps group titles to their assigned locations
+type TitleGroupedLocations map[string][]string
+
+// GroupByTitle takes grouped locations and re-groups them by the config group titles
+// e.g., "pallets" -> all locations from [a, b, c, lud, prm, slp]
+func GroupByTitle(grouped GroupedLocations, config *Config) TitleGroupedLocations {
+	result := make(TitleGroupedLocations)
+
+	// Initialize with all titles + unassigned
+	for _, group := range config.Groups {
+		result[group.Title] = []string{}
+	}
+	result["unassigned"] = []string{}
+
+	// For each group, collect locations from its values
+	for _, group := range config.Groups {
+		for _, value := range group.Values {
+			valueLower := strings.ToLower(value)
+			if locs, exists := grouped[valueLower]; exists {
+				result[group.Title] = append(result[group.Title], locs...)
+			}
+		}
+	}
+
+	// Copy unassigned locations
+	if locs, exists := grouped["unassigned"]; exists {
+		result["unassigned"] = append(result["unassigned"], locs...)
+	}
+
+	return result
+}

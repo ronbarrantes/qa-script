@@ -32,8 +32,8 @@ func main() {
 	}
 	fmt.Printf("\nTotal: %d unique priority locations\n", len(result.PriorityLocations))
 
-	// Log grouped locations
-	fmt.Println("\n=== Grouped Locations ===")
+	// Log grouped locations by value keys
+	fmt.Println("\n=== Grouped Locations (by value) ===")
 	var keys []string
 	for key := range result.GroupedLocations {
 		keys = append(keys, key)
@@ -44,6 +44,24 @@ func main() {
 		locs := result.GroupedLocations[key]
 		if len(locs) > 0 {
 			fmt.Printf("\n[%s] (%d locations)\n", key, len(locs))
+			for _, loc := range locs {
+				fmt.Printf("  - %s\n", loc)
+			}
+		}
+	}
+
+	// Log grouped locations by title
+	fmt.Println("\n=== Grouped Locations (by title) ===")
+	var titles []string
+	for title := range result.TitleGroupedLocations {
+		titles = append(titles, title)
+	}
+	sort.Strings(titles)
+
+	for _, title := range titles {
+		locs := result.TitleGroupedLocations[title]
+		if len(locs) > 0 {
+			fmt.Printf("\n[%s] (%d locations)\n", title, len(locs))
 			for _, loc := range locs {
 				fmt.Printf("  - %s\n", loc)
 			}
