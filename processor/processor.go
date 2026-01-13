@@ -5,12 +5,14 @@ import (
 
 	"qa-script/location"
 	"qa-script/parser"
+	"qa-script/rules"
 )
 
 // Result holds the processed data from both files
 type Result struct {
-	Locations         []string // Unique sorted locations from CSV
-	PriorityLocations []string // Unique sorted locations with QA_HOLD_PICKING
+	Locations         []string                 // Unique sorted locations from CSV
+	PriorityLocations []string                 // Unique sorted locations with QA_HOLD_PICKING
+	GroupedLocations  rules.GroupedLocations   // Locations grouped by rules
 	TotalCSVRows      int
 	TotalExcelRows    int
 }
@@ -69,7 +71,7 @@ func LoadPriorities(excelPath string) ([]string, int, error) {
 }
 
 // Process loads both files and returns the combined result
-func Process(csvPath, excelPath string) (*Result, error) {
+func Process(csvPath, excelPath, rulesPath string) (*Result, error) {
 	locations, csvRows, err := LoadLocations(csvPath)
 	if err != nil {
 		return nil, fmt.Errorf("loading locations: %w", err)
@@ -80,9 +82,18 @@ func Process(csvPath, excelPath string) (*Result, error) {
 		return nil, fmt.Errorf("loading priorities: %w", err)
 	}
 
+	// Load rules and group locations
+	config, err := rules.LoadConfig(rulesPath)
+	if err != nil {
+		return nil, fmt.Errorf("loading rules: %w", err)
+	}
+
+	grouped := rules.GroupLocations(locations, config)
+
 	return &Result{
 		Locations:         locations,
 		PriorityLocations: priorities,
+		GroupedLocations:  grouped,
 		TotalCSVRows:      csvRows,
 		TotalExcelRows:    excelRows,
 	}, nil
