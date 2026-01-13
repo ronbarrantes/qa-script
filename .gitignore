@@ -21,3 +21,5 @@ vendor/
 
 # Go workspace file
 go.work
+
+output.csv
