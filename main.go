@@ -71,10 +71,24 @@ func main() {
 		}
 	}
 
+	// Create output data
+	outputData := output.NewOutputData(
+		result.TitleOrder,
+		result.TitleGroupedLocations,
+		result.PriorityLocations,
+	)
+
 	// Write to CSV
-	outputPath := "output.csv"
-	if err := output.WriteCSV(outputPath, result.TitleOrder, result.TitleGroupedLocations); err != nil {
+	csvPath := "output.csv"
+	if err := output.WriteCSV(csvPath, outputData); err != nil {
 		log.Fatal(err)
 	}
-	fmt.Printf("\n=== Output written to %s ===\n", outputPath)
+	fmt.Printf("\n=== Output written to %s ===\n", csvPath)
+
+	// Write to XLSX (with priority highlighting)
+	xlsxPath := "output.xlsx"
+	if err := output.WriteXLSX(xlsxPath, outputData); err != nil {
+		log.Fatal(err)
+	}
+	fmt.Printf("=== Output written to %s ===\n", xlsxPath)
 }

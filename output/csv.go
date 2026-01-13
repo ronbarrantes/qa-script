@@ -4,13 +4,11 @@ import (
 	"encoding/csv"
 	"fmt"
 	"os"
-
-	"qa-script/rules"
 )
 
 // WriteCSV writes the grouped locations to a CSV file
 // Each column is a title group with the title as the header
-func WriteCSV(filePath string, titleOrder []string, grouped rules.TitleGroupedLocations) error {
+func WriteCSV(filePath string, data *OutputData) error {
 	file, err := os.Create(filePath)
 	if err != nil {
 		return fmt.Errorf("failed to create file: %w", err)
@@ -22,20 +20,20 @@ func WriteCSV(filePath string, titleOrder []string, grouped rules.TitleGroupedLo
 
 	// Find the maximum number of rows needed
 	maxRows := 0
-	for _, title := range titleOrder {
-		if locs := grouped[title]; len(locs) > maxRows {
+	for _, title := range data.TitleOrder {
+		if locs := data.Grouped[title]; len(locs) > maxRows {
 			maxRows = len(locs)
 		}
 	}
 	// Check unassigned too
-	if locs := grouped["unassigned"]; len(locs) > maxRows {
+	if locs := data.Grouped["unassigned"]; len(locs) > maxRows {
 		maxRows = len(locs)
 	}
 
 	// Build headers (titles + unassigned if it has items)
-	headers := make([]string, 0, len(titleOrder)+1)
-	headers = append(headers, titleOrder...)
-	if len(grouped["unassigned"]) > 0 {
+	headers := make([]string, 0, len(data.TitleOrder)+1)
+	headers = append(headers, data.TitleOrder...)
+	if len(data.Grouped["unassigned"]) > 0 {
 		headers = append(headers, "unassigned")
 	}
 
@@ -48,7 +46,7 @@ func WriteCSV(filePath string, titleOrder []string, grouped rules.TitleGroupedLo
 	for row := 0; row < maxRows; row++ {
 		record := make([]string, len(headers))
 		for col, title := range headers {
-			locs := grouped[title]
+			locs := data.Grouped[title]
 			if row < len(locs) {
 				record[col] = locs[row]
 			} else {
