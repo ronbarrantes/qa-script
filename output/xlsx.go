@@ -20,9 +20,10 @@ func WriteXLSX(filePath string, data *OutputData) error {
 	f.SetSheetName("Sheet1", sheetName)
 
 	// Create styles
+	// Note: excelize expects hex colors WITHOUT the # prefix
 	headerStyle, err := f.NewStyle(&excelize.Style{
-		Font:      &excelize.Font{Bold: true, Color: "#FFFFFF"},
-		Fill:      excelize.Fill{Type: "pattern", Color: []string{"#333333"}, Pattern: 1},
+		Font:      &excelize.Font{Bold: true, Color: "FFFFFF"},
+		Fill:      excelize.Fill{Type: "pattern", Color: []string{"4472C4"}, Pattern: 1},
 		Alignment: &excelize.Alignment{Horizontal: "center"},
 	})
 	if err != nil {
@@ -30,7 +31,7 @@ func WriteXLSX(filePath string, data *OutputData) error {
 	}
 
 	priorityStyle, err := f.NewStyle(&excelize.Style{
-		Fill: excelize.Fill{Type: "pattern", Color: []string{"#FFFF00"}, Pattern: 1},
+		Fill: excelize.Fill{Type: "pattern", Color: []string{"FFFF00"}, Pattern: 1},
 	})
 	if err != nil {
 		return fmt.Errorf("failed to create priority style: %w", err)
