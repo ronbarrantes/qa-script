@@ -36,17 +36,14 @@ func ParseExcel(filePath string, sheetName string) (*ExcelData, error) {
 		return nil, fmt.Errorf("sheet %q is empty", sheetName)
 	}
 
-	// First row is headers
-	data := &ExcelData{
+	return &ExcelData{
 		Headers: rows[0],
 		Rows:    rows[1:],
 		Sheet:   sheetName,
-	}
-
-	return data, nil
+	}, nil
 }
 
-// GetColumnIndex returns the index of a column by name
+// GetColumnIndex returns the index of a column by name, or -1 if not found
 func (e *ExcelData) GetColumnIndex(columnName string) int {
 	for i, header := range e.Headers {
 		if header == columnName {
@@ -70,30 +67,4 @@ func (e *ExcelData) GetColumnValues(columnName string) ([]string, error) {
 		}
 	}
 	return values, nil
-}
-
-// ToMap converts rows to a slice of maps with header keys
-func (e *ExcelData) ToMap() []map[string]string {
-	result := make([]map[string]string, len(e.Rows))
-	for i, row := range e.Rows {
-		rowMap := make(map[string]string)
-		for j, header := range e.Headers {
-			if j < len(row) {
-				rowMap[header] = row[j]
-			}
-		}
-		result[i] = rowMap
-	}
-	return result
-}
-
-// GetSheetNames returns all sheet names in the Excel file
-func GetSheetNames(filePath string) ([]string, error) {
-	f, err := excelize.OpenFile(filePath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to open Excel file: %w", err)
-	}
-	defer f.Close()
-
-	return f.GetSheetList(), nil
 }

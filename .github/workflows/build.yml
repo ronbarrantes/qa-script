@@ -5,14 +5,35 @@ on:
   pull_request:
     branches: [main]
   
+  # Automatic: Build on push to main
+  push:
+    branches: [main]
+  
   # Manual: Click "Run workflow" anytime you need fresh artifacts
   workflow_dispatch:
 
 jobs:
+  # Run tests first
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+
+      - name: Run tests
+        run: go test ./... -v
+
   # Build the CLI tool for all platforms
   build-cli:
     name: Build CLI - ${{ matrix.os }}
     runs-on: ubuntu-latest
+    needs: test
     strategy:
       matrix:
         include:
@@ -24,11 +45,11 @@ jobs:
             goos: linux
             goarch: amd64
             ext: ''
-          - os: macos
+          - os: macos-amd64
             goos: darwin
             goarch: amd64
             ext: ''
-          - os: macos-arm
+          - os: macos-arm64
             goos: darwin
             goarch: arm64
             ext: ''
@@ -42,27 +63,26 @@ jobs:
         with:
           go-version: '1.21'
 
-      - name: Clean old builds
-        run: rm -f qa-script-*
-
       - name: Build CLI
         env:
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
           CGO_ENABLED: 0
         run: |
-          go build -o qa-script-${{ matrix.os }}${{ matrix.ext }} .
+          mkdir -p bin
+          go build -o bin/qa-cli-${{ matrix.os }}${{ matrix.ext }} ./cmd/cli/
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: qa-script-cli-${{ matrix.os }}
-          path: qa-script-${{ matrix.os }}${{ matrix.ext }}
+          name: qa-cli-${{ matrix.os }}
+          path: bin/qa-cli-${{ matrix.os }}${{ matrix.ext }}
 
-  # Build the Wails GUI app for all platforms
+  # Build the Wails GUI app for Windows
   build-gui-windows:
     name: Build GUI - Windows
     runs-on: windows-latest
+    needs: test
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -75,25 +95,21 @@ jobs:
       - name: Install Wails
         run: go install github.com/wailsapp/wails/v2/cmd/wails@latest
 
-      - name: Clean old builds
-        working-directory: gui
-        run: |
-          if (Test-Path "build/bin") { Remove-Item -Recurse -Force "build/bin/*" -ErrorAction SilentlyContinue }
-        shell: pwsh
-
       - name: Build Windows GUI
-        working-directory: gui
+        working-directory: cmd/gui
         run: wails build -platform windows/amd64
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: qa-script-gui-windows
-          path: gui/build/bin/*.exe
+          name: qa-gui-windows
+          path: cmd/gui/build/bin/*.exe
 
+  # Build the Wails GUI app for Linux
   build-gui-linux:
     name: Build GUI - Linux
     runs-on: ubuntu-latest
+    needs: test
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -111,23 +127,21 @@ jobs:
       - name: Install Wails
         run: go install github.com/wailsapp/wails/v2/cmd/wails@latest
 
-      - name: Clean old builds
-        working-directory: gui
-        run: make clean
-
       - name: Build Linux GUI
-        working-directory: gui
+        working-directory: cmd/gui
         run: wails build -tags webkit2_41 -platform linux/amd64
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: qa-script-gui-linux
-          path: gui/build/bin/*
+          name: qa-gui-linux
+          path: cmd/gui/build/bin/*
 
+  # Build the Wails GUI app for macOS
   build-gui-macos:
     name: Build GUI - macOS
     runs-on: macos-latest
+    needs: test
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -140,20 +154,12 @@ jobs:
       - name: Install Wails
         run: go install github.com/wailsapp/wails/v2/cmd/wails@latest
 
-      - name: Clean old builds
-        working-directory: gui
-        run: make clean
-
-      - name: Build macOS GUI (Intel)
-        working-directory: gui
-        run: wails build -platform darwin/amd64
-
-      - name: Build macOS GUI (Apple Silicon)
-        working-directory: gui
-        run: wails build -platform darwin/arm64
+      - name: Build macOS GUI (Universal)
+        working-directory: cmd/gui
+        run: wails build -platform darwin/universal
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: qa-script-gui-macos
-          path: gui/build/bin/*
+          name: qa-gui-macos
+          path: cmd/gui/build/bin/*.app

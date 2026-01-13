@@ -1,289 +1,258 @@
 package rules
 
 import (
+	"os"
+	"path/filepath"
+	"reflect"
 	"testing"
 )
 
-func TestParseLocation(t *testing.T) {
+func TestExtractLetterPrefix(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{"3 letters", "SS4:GFT22.B", "GFT"},
+		{"2 letters", "SS4:GF225.C", "GF"},
+		{"2 letters simple", "PS2:CL106", "CL"},
+		{"3 letters with suffix", "PS1:LUD215", "LUD"},
+		{"no colon", "ABC123", ""},
+		{"empty string", "", ""},
+		{"only letters after colon", "X:ABC", "ABC"},
+		{"starts with number after colon", "X:123ABC", ""},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := extractLetterPrefix(tt.input)
+			if result != tt.expected {
+				t.Errorf("extractLetterPrefix(%q) = %q, want %q", tt.input, result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestIsMultiLetterKey(t *testing.T) {
 	tests := []struct {
 		input    string
-		wantCode string
-		wantLets string
-		wantNum  string
-		wantSuf  string
+		expected bool
 	}{
-		{"SS4:GF225.B", "GF225.B", "GF", "225", ".B"},
-		{"SS4:GFT245.B", "GFT245.B", "GFT", "245", ".B"},
-		{"ABC:HVC12", "HVC12", "HVC", "12", ""},
-		{"X:AB100", "AB100", "AB", "100", ""},
-		{"NoColon", "NoColon", "NOCOLON", "", ""},
+		{"a", false},
+		{"ab", false},
+		{"abc", true},
+		{"abcd", true},
+		{"gft", true},
+		{"", false},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.input, func(t *testing.T) {
-			lc := ParseLocation(tt.input)
-			if lc.Code != tt.wantCode {
-				t.Errorf("Code = %q, want %q", lc.Code, tt.wantCode)
-			}
-			if lc.Letters != tt.wantLets {
-				t.Errorf("Letters = %q, want %q", lc.Letters, tt.wantLets)
-			}
-			if lc.Number != tt.wantNum {
-				t.Errorf("Number = %q, want %q", lc.Number, tt.wantNum)
-			}
-			if lc.Suffix != tt.wantSuf {
-				t.Errorf("Suffix = %q, want %q", lc.Suffix, tt.wantSuf)
+			result := isMultiLetterKey(tt.input)
+			if result != tt.expected {
+				t.Errorf("isMultiLetterKey(%q) = %v, want %v", tt.input, result, tt.expected)
 			}
 		})
 	}
 }
 
-func TestGetCodeType(t *testing.T) {
-	tests := []struct {
-		input    string
-		wantType CodeType
-	}{
-		{"SS4:GF225.B", StandardGroup},   // 2 letters = standard
-		{"SS4:GFT245.B", MatchingGroup},  // 3 letters = matching
-		{"X:AB100", StandardGroup},       // 2 letters = standard
-		{"X:HVC12", MatchingGroup},       // 3 letters = matching
-		{"X:A1", UnknownGroup},           // 1 letter = unknown
+func TestConfig_GetAllKeys(t *testing.T) {
+	config := &Config{
+		Groups: []Group{
+			{Title: "pallets", Values: []string{"a", "B", "LUD"}},
+			{Title: "efg", Values: []string{"E", "gft"}},
+		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.input, func(t *testing.T) {
-			lc := ParseLocation(tt.input)
-			if got := lc.GetCodeType(); got != tt.wantType {
-				t.Errorf("GetCodeType() = %v, want %v", got, tt.wantType)
-			}
-		})
+	expected := []string{"a", "b", "lud", "e", "gft"}
+	result := config.GetAllKeys()
+
+	if !reflect.DeepEqual(result, expected) {
+		t.Errorf("GetAllKeys() = %v, want %v", result, expected)
 	}
 }
 
-func TestGetPrimaryGroup(t *testing.T) {
-	tests := []struct {
-		input     string
-		wantGroup string
-	}{
-		{"SS4:GF225.B", "G"},    // 2 letters: first letter is group
-		{"SS4:GFT245.B", "GFT"}, // 3 letters: full code is group
-		{"X:AB100", "A"},       // 2 letters: first letter is group
-		{"X:HVC12", "HVC"},     // 3 letters: full code is group
+func TestConfig_GetTitlesInOrder(t *testing.T) {
+	config := &Config{
+		Groups: []Group{
+			{Title: "pallets", Values: []string{"a", "b"}},
+			{Title: "efg", Values: []string{"e", "f"}},
+			{Title: "hjkl", Values: []string{"h", "j"}},
+		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.input, func(t *testing.T) {
-			lc := ParseLocation(tt.input)
-			if got := lc.GetPrimaryGroup(); got != tt.wantGroup {
-				t.Errorf("GetPrimaryGroup() = %q, want %q", got, tt.wantGroup)
-			}
-		})
-	}
-}
+	expected := []string{"pallets", "efg", "hjkl"}
+	result := config.GetTitlesInOrder()
 
-func TestMatchesGroupValue(t *testing.T) {
-	tests := []struct {
-		location   string
-		groupValue string
-		want       bool
-	}{
-		// 2-letter codes with single-letter group values
-		{"SS4:GF225.B", "G", true},   // GF starts with G
-		{"SS4:GF225.B", "H", false},  // GF doesn't start with H
-		{"SS4:AB100.A", "A", true},   // AB starts with A
-
-		// 3-letter codes with exact match
-		{"SS4:GFT245.B", "GFT", true},  // Exact match
-		{"SS4:GFT245.B", "G", true},    // Also matches prefix
-		{"SS4:GFT245.B", "HVC", false}, // Doesn't match
-
-		// Exact code matching
-		{"SS4:GF225.B", "GF", true},   // Exact match for 2-letter
-		{"SS4:GF225.B", "AB", false},  // Not a match
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.location+"_"+tt.groupValue, func(t *testing.T) {
-			lc := ParseLocation(tt.location)
-			if got := lc.MatchesGroupValue(tt.groupValue); got != tt.want {
-				t.Errorf("MatchesGroupValue(%q) = %v, want %v", tt.groupValue, got, tt.want)
-			}
-		})
-	}
-}
-
-func TestSortLocations(t *testing.T) {
-	input := []string{
-		"SS4:GF300.B",
-		"SS4:GF25.A",
-		"SS4:GF100.C",
-		"SS4:AB50",
-		"SS4:GF100.A",
-	}
-
-	sorted := SortLocations(input)
-
-	// Should be sorted by letters first, then numerically, then by suffix
-	expected := []string{
-		"SS4:AB50",
-		"SS4:GF25.A",
-		"SS4:GF100.A",
-		"SS4:GF100.C",
-		"SS4:GF300.B",
-	}
-
-	for i, want := range expected {
-		if sorted[i] != want {
-			t.Errorf("sorted[%d] = %q, want %q", i, sorted[i], want)
-		}
-	}
-}
-
-func TestIsMatchingGroup(t *testing.T) {
-	tests := []struct {
-		input string
-		want  bool
-	}{
-		{"SS4:GF225.B", false},  // 2 letters = not matching group
-		{"SS4:GFT245.B", true},  // 3 letters = matching group
-		{"X:HVC12", true},       // 3 letters = matching group
-		{"X:AB100", false},      // 2 letters = not matching group
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.input, func(t *testing.T) {
-			lc := ParseLocation(tt.input)
-			if got := lc.IsMatchingGroup(); got != tt.want {
-				t.Errorf("IsMatchingGroup() = %v, want %v", got, tt.want)
-			}
-		})
+	if !reflect.DeepEqual(result, expected) {
+		t.Errorf("GetTitlesInOrder() = %v, want %v", result, expected)
 	}
 }
 
 func TestGroupLocations(t *testing.T) {
-	input := []string{
-		"SS4:GF225.B",
-		"SS4:GFT245.B",
-		"SS4:AB100",
-		"SS4:GF300.A",
-		"SS4:HVC12",
+	config := &Config{
+		Groups: []Group{
+			{Title: "pallets", Values: []string{"a", "c", "lud"}},
+			{Title: "efg", Values: []string{"e", "g", "gft"}},
+		},
 	}
 
-	groups := GroupLocations(input)
+	locations := []string{
+		"ST5:AQ211",   // should match 'a'
+		"PS2:CL106",   // should match 'c'
+		"SS4:GFT33.A", // should match 'gft' (exact 3-letter)
+		"SS4:GF225.B", // should match 'g' (2-letter prefix)
+		"PS1:LUD215",  // should match 'lud' (exact 3-letter)
+		"SS4:XY999",   // should be unassigned
+	}
 
-	// Check that groups are created correctly
-	// 2-letter codes group by first letter
-	// 3-letter codes use full code
-	if len(groups["G"]) != 2 { // GF225 and GF300
-		t.Errorf("Expected 2 items in G group, got %d", len(groups["G"]))
-	}
-	if len(groups["GFT"]) != 1 {
-		t.Errorf("Expected 1 item in GFT group, got %d", len(groups["GFT"]))
-	}
-	if len(groups["A"]) != 1 { // AB100
-		t.Errorf("Expected 1 item in A group, got %d", len(groups["A"]))
-	}
-	if len(groups["HVC"]) != 1 {
-		t.Errorf("Expected 1 item in HVC group, got %d", len(groups["HVC"]))
-	}
-}
+	result := GroupLocations(locations, config)
 
-func TestExtractSortKey(t *testing.T) {
+	// Check specific assignments
 	tests := []struct {
-		input string
-		want  string
+		key      string
+		expected []string
 	}{
-		{"SS4:GF225.B", "GF225.B"},
-		{"ABC:XYZ123", "XYZ123"},
-		{"NoColon", "NoColon"},
+		{"a", []string{"ST5:AQ211"}},
+		{"c", []string{"PS2:CL106"}},
+		{"gft", []string{"SS4:GFT33.A"}},
+		{"g", []string{"SS4:GF225.B"}},
+		{"lud", []string{"PS1:LUD215"}},
+		{"unassigned", []string{"SS4:XY999"}},
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.input, func(t *testing.T) {
-			if got := ExtractSortKey(tt.input); got != tt.want {
-				t.Errorf("ExtractSortKey() = %q, want %q", got, tt.want)
+		t.Run(tt.key, func(t *testing.T) {
+			if !reflect.DeepEqual(result[tt.key], tt.expected) {
+				t.Errorf("GroupLocations()[%q] = %v, want %v", tt.key, result[tt.key], tt.expected)
 			}
 		})
 	}
 }
 
-func TestParseLocation_PreservesOriginal(t *testing.T) {
-	// Verify that the Original field preserves the FULL location string
-	// including the prefix before the colon (e.g., "PS1:", "SS4:")
-	tests := []string{
-		"PS1:AB215",
-		"SS4:GF253.G",
-		"SS11:EN15.B",
-		"ST3:CS121",
-		"PS1:LUD86",
-		"SS4:GFT31.A",
+func TestGroupLocations_ThreeLetterExactMatch(t *testing.T) {
+	// Test that 3-letter prefixes match exactly, not by first letter
+	config := &Config{
+		Groups: []Group{
+			{Title: "test", Values: []string{"g", "gft"}},
+		},
 	}
 
-	for _, input := range tests {
-		t.Run(input, func(t *testing.T) {
-			lc := ParseLocation(input)
-			if lc.Original != input {
-				t.Errorf("Original = %q, want %q (full string must be preserved)", lc.Original, input)
-			}
-		})
+	locations := []string{
+		"SS4:GFT33.A", // should match 'gft', NOT 'g'
+		"SS4:GF225.B", // should match 'g'
+	}
+
+	result := GroupLocations(locations, config)
+
+	if len(result["gft"]) != 1 || result["gft"][0] != "SS4:GFT33.A" {
+		t.Errorf("Expected GFT33.A to match 'gft', got %v", result["gft"])
+	}
+
+	if len(result["g"]) != 1 || result["g"][0] != "SS4:GF225.B" {
+		t.Errorf("Expected GF225.B to match 'g', got %v", result["g"])
 	}
 }
 
-func TestSortLocations_PreservesFullStrings(t *testing.T) {
-	// CRITICAL: Sorting must preserve the FULL location string including prefix
-	// Only the part after ":" is used for sorting, but output must include everything
-	input := []string{
-		"SS4:GF300.B",
-		"PS1:AB50",
-		"SS11:GF25.A",
-		"ST3:GF100.C",
+func TestGroupByTitle(t *testing.T) {
+	config := &Config{
+		Groups: []Group{
+			{Title: "pallets", Values: []string{"a", "c"}},
+			{Title: "efg", Values: []string{"e", "gft"}},
+		},
 	}
 
-	sorted := SortLocations(input)
-
-	// Verify all results still have their prefixes
-	for i, loc := range sorted {
-		if loc == "" {
-			t.Errorf("sorted[%d] is empty", i)
-			continue
-		}
-		// Each result must contain a colon (prefix preserved)
-		if !contains(loc, ":") {
-			t.Errorf("sorted[%d] = %q is missing prefix (no colon found)", i, loc)
-		}
-		// Must be one of our original inputs
-		found := false
-		for _, orig := range input {
-			if loc == orig {
-				found = true
-				break
-			}
-		}
-		if !found {
-			t.Errorf("sorted[%d] = %q is not from original input (string was modified)", i, loc)
-		}
+	grouped := GroupedLocations{
+		"a":          []string{"ST5:AQ211"},
+		"c":          []string{"PS2:CL106"},
+		"gft":        []string{"SS4:GFT33.A"},
+		"e":          []string{"SS4:EF205.G"},
+		"unassigned": []string{"SS4:XY999"},
 	}
 
-	// Verify sorting order (by code after colon)
-	// AB50 < GF25 < GF100 < GF300
-	expected := []string{
-		"PS1:AB50",
-		"SS11:GF25.A",
-		"ST3:GF100.C",
-		"SS4:GF300.B",
+	result := GroupByTitle(grouped, config)
+
+	// pallets should have items from 'a' and 'c'
+	expectedPallets := []string{"ST5:AQ211", "PS2:CL106"}
+	if !reflect.DeepEqual(result["pallets"], expectedPallets) {
+		t.Errorf("GroupByTitle()[pallets] = %v, want %v", result["pallets"], expectedPallets)
 	}
-	for i, want := range expected {
-		if sorted[i] != want {
-			t.Errorf("sorted[%d] = %q, want %q", i, sorted[i], want)
-		}
+
+	// efg should have items from 'e' and 'gft'
+	expectedEfg := []string{"SS4:EF205.G", "SS4:GFT33.A"}
+	if !reflect.DeepEqual(result["efg"], expectedEfg) {
+		t.Errorf("GroupByTitle()[efg] = %v, want %v", result["efg"], expectedEfg)
+	}
+
+	// unassigned should be preserved
+	if !reflect.DeepEqual(result["unassigned"], []string{"SS4:XY999"}) {
+		t.Errorf("GroupByTitle()[unassigned] = %v, want [SS4:XY999]", result["unassigned"])
 	}
 }
 
-func contains(s, substr string) bool {
-	for i := 0; i <= len(s)-len(substr); i++ {
-		if s[i:i+len(substr)] == substr {
-			return true
-		}
+func TestLoadConfig(t *testing.T) {
+	// Create a temporary YAML file
+	content := `groups:
+  - title: pallets
+    values: [a, b, c]
+  - title: efg
+    values: [e, f, g]
+size: 20
+`
+	tmpDir := t.TempDir()
+	tmpFile := filepath.Join(tmpDir, "test.yaml")
+	if err := os.WriteFile(tmpFile, []byte(content), 0644); err != nil {
+		t.Fatalf("failed to write temp file: %v", err)
 	}
-	return false
+
+	config, err := LoadConfig(tmpFile)
+	if err != nil {
+		t.Fatalf("LoadConfig failed: %v", err)
+	}
+
+	if len(config.Groups) != 2 {
+		t.Errorf("expected 2 groups, got %d", len(config.Groups))
+	}
+
+	if config.Groups[0].Title != "pallets" {
+		t.Errorf("expected first group title 'pallets', got %q", config.Groups[0].Title)
+	}
+
+	if config.Size != 20 {
+		t.Errorf("expected size 20, got %d", config.Size)
+	}
+}
+
+func TestLoadConfig_FileNotFound(t *testing.T) {
+	_, err := LoadConfig("/nonexistent/file.yaml")
+	if err == nil {
+		t.Error("expected error for nonexistent file, got nil")
+	}
+}
+
+func TestGetNonEmptyGroups(t *testing.T) {
+	grouped := GroupedLocations{
+		"a":          []string{"loc1"},
+		"b":          []string{},
+		"c":          []string{"loc2", "loc3"},
+		"unassigned": []string{},
+	}
+
+	result := grouped.GetNonEmptyGroups()
+
+	if len(result) != 2 {
+		t.Errorf("expected 2 non-empty groups, got %d", len(result))
+	}
+
+	if _, exists := result["a"]; !exists {
+		t.Error("expected 'a' to be in result")
+	}
+
+	if _, exists := result["c"]; !exists {
+		t.Error("expected 'c' to be in result")
+	}
+
+	if _, exists := result["b"]; exists {
+		t.Error("expected 'b' to NOT be in result")
+	}
 }

@@ -1,224 +1,187 @@
-// Package rules defines parsing, sorting, and grouping rules for location strings.
-//
-// Location Format:
-//   - Full format: PREFIX:CODE (e.g., "SS4:GF225.B")
-//   - PREFIX (before colon): Ignored for sorting/grouping purposes
-//   - CODE (after colon): Used for sorting and grouping
-//
-// Grouping Rules:
-//   - 2-letter prefix (e.g., "GF" in "GF225.B"): Belongs to a specific group
-//     determined by the first letter (e.g., "GF" -> "G" group)
-//   - 3-letter prefix (e.g., "GFT" in "GFT245.B"): "Matching group" that can
-//     be assigned to any of multiple groups defined in the YAML configuration
 package rules
 
 import (
+	"fmt"
+	"os"
 	"regexp"
-	"sort"
 	"strings"
 	"unicode"
+
+	"gopkg.in/yaml.v3"
 )
 
-// LocationCode represents the parsed components of a location string.
-type LocationCode struct {
-	Original string // The full original location string (e.g., "SS4:GF225.B")
-	Prefix   string // Everything before the colon (e.g., "SS4")
-	Code     string // Everything after the colon (e.g., "GF225.B")
-	Letters  string // The letter prefix of the code (e.g., "GF" or "GFT")
-	Number   string // The numeric portion of the code (e.g., "225")
-	Suffix   string // Any suffix after the number (e.g., ".B")
+// Config represents the rules.yaml structure
+type Config struct {
+	Groups []Group `yaml:"groups"`
+	Size   int     `yaml:"size"`
+	Gap    int     `yaml:"gap"` // Number of empty columns between groups (0 = no gap)
 }
 
-// CodeType indicates whether a location code is a standard group or a matching group.
-type CodeType int
-
-const (
-	// StandardGroup is a 2-letter code that belongs to a single specific group.
-	StandardGroup CodeType = iota
-	// MatchingGroup is a 3-letter code that can match multiple groups.
-	MatchingGroup
-	// UnknownGroup is a code that doesn't fit the standard patterns.
-	UnknownGroup
-)
-
-// codePattern matches the location code format after the colon.
-// Captures: (letters)(numbers)(suffix)
-var codePattern = regexp.MustCompile(`^([A-Za-z]+)(\d+)(.*)$`)
-
-// ParseLocation parses a full location string into its components.
-func ParseLocation(location string) LocationCode {
-	location = strings.TrimSpace(location)
-	lc := LocationCode{Original: location}
-
-	// Split on colon - everything after is the relevant code
-	if idx := strings.Index(location, ":"); idx != -1 {
-		lc.Prefix = location[:idx]
-		lc.Code = location[idx+1:]
-	} else {
-		// No colon found, treat entire string as code
-		lc.Code = location
-	}
-
-	// Parse the code portion
-	matches := codePattern.FindStringSubmatch(lc.Code)
-	if len(matches) >= 4 {
-		lc.Letters = strings.ToUpper(matches[1])
-		lc.Number = matches[2]
-		lc.Suffix = matches[3]
-	} else {
-		// Couldn't parse, use the whole code as letters
-		lc.Letters = strings.ToUpper(lc.Code)
-	}
-
-	return lc
+// Group represents a single group in the config
+type Group struct {
+	Title  string   `yaml:"title"`
+	Values []string `yaml:"values"`
 }
 
-// GetCodeType returns the type of the location code based on letter count.
-func (lc LocationCode) GetCodeType() CodeType {
-	letterCount := len(lc.Letters)
-	switch {
-	case letterCount == 2:
-		return StandardGroup
-	case letterCount >= 3:
-		return MatchingGroup
-	default:
-		return UnknownGroup
+// GroupedLocations maps rule keys to their assigned locations
+type GroupedLocations map[string][]string
+
+// LoadConfig reads and parses the rules.yaml file
+func LoadConfig(path string) (*Config, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read config: %w", err)
 	}
+
+	var config Config
+	if err := yaml.Unmarshal(data, &config); err != nil {
+		return nil, fmt.Errorf("failed to parse config: %w", err)
+	}
+
+	return &config, nil
 }
 
-// GetPrimaryGroup returns the primary group identifier for a location.
-// For 2-letter codes, this is the first letter (e.g., "GF" -> "G").
-// For 3-letter codes, this is the full 3-letter code (e.g., "GFT" -> "GFT").
-func (lc LocationCode) GetPrimaryGroup() string {
-	if len(lc.Letters) == 0 {
+// GetAllKeys returns all values from all groups as lowercase keys
+func (c *Config) GetAllKeys() []string {
+	var keys []string
+	for _, group := range c.Groups {
+		for _, value := range group.Values {
+			keys = append(keys, strings.ToLower(value))
+		}
+	}
+	return keys
+}
+
+// GetTitlesInOrder returns all group titles in the order they appear in the config
+func (c *Config) GetTitlesInOrder() []string {
+	titles := make([]string, len(c.Groups))
+	for i, group := range c.Groups {
+		titles[i] = group.Title
+	}
+	return titles
+}
+
+// extractLetterPrefix extracts the letter-only prefix after the colon
+// e.g., "SS4:GFT22.B" -> "GFT", "SS4:GF225.C" -> "GF"
+func extractLetterPrefix(location string) string {
+	// Find the part after the colon
+	idx := strings.Index(location, ":")
+	if idx == -1 {
 		return ""
 	}
+	afterColon := location[idx+1:]
 
-	switch lc.GetCodeType() {
-	case StandardGroup:
-		// 2-letter code: group by first letter
-		return string(lc.Letters[0])
-	case MatchingGroup:
-		// 3-letter code: use full code as group identifier
-		return lc.Letters
-	default:
-		return lc.Letters
-	}
-}
-
-// IsMatchingGroup returns true if this is a 3-letter matching group code.
-func (lc LocationCode) IsMatchingGroup() bool {
-	return lc.GetCodeType() == MatchingGroup
-}
-
-// SortKey returns the sortable portion of the location (everything after the colon).
-func (lc LocationCode) SortKey() string {
-	return lc.Code
-}
-
-// MatchesGroupValue checks if this location matches a given group value.
-// Rules:
-//   - Single letter value (e.g., "G"): Matches if first letter of code matches
-//   - Multi-letter value (e.g., "GFT"): Matches if full Letters equals the value
-func (lc LocationCode) MatchesGroupValue(groupValue string) bool {
-	groupValue = strings.ToUpper(strings.TrimSpace(groupValue))
-	if groupValue == "" || lc.Letters == "" {
-		return false
-	}
-
-	// Single letter: prefix match (e.g., "G" matches "GF", "GA", etc.)
-	if len(groupValue) == 1 {
-		return strings.HasPrefix(lc.Letters, groupValue)
-	}
-
-	// Multi-letter: exact match
-	return lc.Letters == groupValue
-}
-
-// SortLocations sorts a slice of location strings by their sort key (after the colon).
-// The sort is case-insensitive and handles alphanumeric codes intelligently.
-func SortLocations(locations []string) []string {
-	sorted := make([]string, len(locations))
-	copy(sorted, locations)
-
-	sort.Slice(sorted, func(i, j int) bool {
-		a := ParseLocation(sorted[i])
-		b := ParseLocation(sorted[j])
-		return compareLocationCodes(a, b) < 0
-	})
-
-	return sorted
-}
-
-// compareLocationCodes compares two LocationCode values for sorting.
-// Returns negative if a < b, positive if a > b, zero if equal.
-func compareLocationCodes(a, b LocationCode) int {
-	// First compare by letters
-	if cmp := strings.Compare(a.Letters, b.Letters); cmp != 0 {
-		return cmp
-	}
-
-	// Then compare by number (numerically if possible)
-	aNum := parseNumber(a.Number)
-	bNum := parseNumber(b.Number)
-	if aNum != bNum {
-		if aNum < bNum {
-			return -1
-		}
-		return 1
-	}
-
-	// Finally compare by suffix
-	return strings.Compare(a.Suffix, b.Suffix)
-}
-
-// parseNumber extracts a numeric value from a string, returns 0 if not parseable.
-func parseNumber(s string) int {
-	var n int
-	for _, r := range s {
-		if unicode.IsDigit(r) {
-			n = n*10 + int(r-'0')
+	// Extract leading letters only (no digits)
+	var letters strings.Builder
+	for _, r := range afterColon {
+		if unicode.IsLetter(r) {
+			letters.WriteRune(r)
+		} else {
+			break
 		}
 	}
-	return n
+	return letters.String()
 }
 
-// ExtractLetterCode is a helper that returns just the letter portion of a location.
-// This is useful for quick grouping checks.
-func ExtractLetterCode(location string) (string, bool) {
-	lc := ParseLocation(location)
-	if lc.Letters == "" {
-		return "", false
+// isMultiLetterKey checks if a key is 3+ letters (not a single letter key)
+func isMultiLetterKey(key string) bool {
+	return len(key) >= 3
+}
+
+// GroupLocations assigns locations to groups based on the rules
+func GroupLocations(locations []string, config *Config) GroupedLocations {
+	// Build a set of valid keys from config
+	validKeys := make(map[string]bool)
+	for _, key := range config.GetAllKeys() {
+		validKeys[strings.ToLower(key)] = true
 	}
-	return lc.Letters, true
-}
 
-// ExtractSortKey returns the portion of location used for sorting (after colon).
-func ExtractSortKey(location string) string {
-	lc := ParseLocation(location)
-	return lc.Code
-}
+	// Initialize result map with all keys + unassigned
+	result := make(GroupedLocations)
+	for key := range validKeys {
+		result[key] = []string{}
+	}
+	result["unassigned"] = []string{}
 
-// GroupLocations groups a slice of locations by their primary group.
-// Returns a map where keys are group identifiers and values are location slices.
-func GroupLocations(locations []string) map[string][]string {
-	groups := make(map[string][]string)
+	// Pattern to check if prefix has only letters (no digits)
+	lettersOnly := regexp.MustCompile(`^[A-Za-z]+$`)
 
+	// Assign each location to a group
 	for _, loc := range locations {
-		lc := ParseLocation(loc)
-		group := lc.GetPrimaryGroup()
-		if group == "" {
-			group = "unknown"
+		prefix := extractLetterPrefix(loc)
+		if prefix == "" {
+			result["unassigned"] = append(result["unassigned"], loc)
+			continue
 		}
-		groups[group] = append(groups[group], loc)
+
+		prefixLower := strings.ToLower(prefix)
+		assigned := false
+
+		// Rule 1: If prefix is 3+ letters, try exact match
+		if len(prefix) >= 3 && lettersOnly.MatchString(prefix) {
+			if validKeys[prefixLower] {
+				result[prefixLower] = append(result[prefixLower], loc)
+				assigned = true
+			}
+		}
+
+		// Rule 2: If prefix is 2 letters (or 3+ didn't match), use first letter
+		if !assigned && len(prefix) >= 2 {
+			firstLetter := strings.ToLower(string(prefix[0]))
+			if validKeys[firstLetter] {
+				result[firstLetter] = append(result[firstLetter], loc)
+				assigned = true
+			}
+		}
+
+		// Rule 3: Anything else goes to unassigned
+		if !assigned {
+			result["unassigned"] = append(result["unassigned"], loc)
+		}
 	}
 
-	return groups
+	return result
 }
 
-// SortGroupedLocations sorts each group's locations in place.
-func SortGroupedLocations(groups map[string][]string) {
-	for key := range groups {
-		groups[key] = SortLocations(groups[key])
+// GetNonEmptyGroups returns only groups that have locations assigned
+func (g GroupedLocations) GetNonEmptyGroups() GroupedLocations {
+	result := make(GroupedLocations)
+	for key, locs := range g {
+		if len(locs) > 0 {
+			result[key] = locs
+		}
 	}
+	return result
+}
+
+// TitleGroupedLocations maps group titles to their assigned locations
+type TitleGroupedLocations map[string][]string
+
+// GroupByTitle takes grouped locations and re-groups them by the config group titles
+// e.g., "pallets" -> all locations from [a, b, c, lud, prm, slp]
+func GroupByTitle(grouped GroupedLocations, config *Config) TitleGroupedLocations {
+	result := make(TitleGroupedLocations)
+
+	// Initialize with all titles + unassigned
+	for _, group := range config.Groups {
+		result[group.Title] = []string{}
+	}
+	result["unassigned"] = []string{}
+
+	// For each group, collect locations from its values
+	for _, group := range config.Groups {
+		for _, value := range group.Values {
+			valueLower := strings.ToLower(value)
+			if locs, exists := grouped[valueLower]; exists {
+				result[group.Title] = append(result[group.Title], locs...)
+			}
+		}
+	}
+
+	// Copy unassigned locations
+	if locs, exists := grouped["unassigned"]; exists {
+		result["unassigned"] = append(result["unassigned"], locs...)
+	}
+
+	return result
 }
