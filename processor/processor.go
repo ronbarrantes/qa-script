@@ -3,6 +3,7 @@ package processor
 import (
 	"fmt"
 
+	"qa-script/constants"
 	"qa-script/location"
 	"qa-script/parser"
 	"qa-script/rules"
@@ -24,7 +25,7 @@ func LoadLocations(csvPath string) ([]string, int, error) {
 		return nil, 0, err
 	}
 
-	locations, err := csv.GetColumnValues("Location")
+	locations, err := csv.GetColumnValues(constants.ColLocation)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -41,20 +42,20 @@ func LoadPriorities(excelPath string) ([]string, int, error) {
 		return nil, 0, err
 	}
 
-	tagIdx := excel.GetColumnIndex("Container Tag")
+	tagIdx := excel.GetColumnIndex(constants.ColContainerTag)
 	if tagIdx == -1 {
-		return nil, 0, fmt.Errorf("column %q not found", "Container Tag")
+		return nil, 0, fmt.Errorf("column %q not found", constants.ColContainerTag)
 	}
 
-	locIdx := excel.GetColumnIndex("Current Location")
+	locIdx := excel.GetColumnIndex(constants.ColCurrentLocation)
 	if locIdx == -1 {
-		return nil, 0, fmt.Errorf("column %q not found", "Current Location")
+		return nil, 0, fmt.Errorf("column %q not found", constants.ColCurrentLocation)
 	}
 
 	// Filter by QA_HOLD_PICKING and extract unique Current Locations
 	prioritySet := make(map[string]struct{})
 	for _, row := range excel.Rows {
-		if tagIdx < len(row) && row[tagIdx] == "QA_HOLD_PICKING" {
+		if tagIdx < len(row) && row[tagIdx] == constants.TagQAHoldPicking {
 			if locIdx < len(row) {
 				prioritySet[row[locIdx]] = struct{}{}
 			}
