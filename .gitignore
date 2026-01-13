@@ -2,6 +2,9 @@
 tmp/
 build-errors.log
 
+# Build output
+bin/
+
 # Go build artifacts
 *.exe
 *.exe~
