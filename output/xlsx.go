@@ -9,6 +9,9 @@ import (
 // WriteXLSX writes the grouped locations to an Excel file
 // Each column is a title group with the title as the header
 // Priority locations are highlighted in yellow
+// Gap columns are inserted between groups based on data.Gap
+// Size controls max rows per column before spillover
+// Headers are merged across spillover columns
 func WriteXLSX(filePath string, data *OutputData) error {
 	f := excelize.NewFile()
 	defer f.Close()
@@ -18,8 +21,9 @@ func WriteXLSX(filePath string, data *OutputData) error {
 
 	// Create styles
 	headerStyle, err := f.NewStyle(&excelize.Style{
-		Font: &excelize.Font{Bold: true},
-		Fill: excelize.Fill{Type: "pattern", Color: []string{"#DDDDDD"}, Pattern: 1},
+		Font:      &excelize.Font{Bold: true},
+		Fill:      excelize.Fill{Type: "pattern", Color: []string{"#DDDDDD"}, Pattern: 1},
+		Alignment: &excelize.Alignment{Horizontal: "center"},
 	})
 	if err != nil {
 		return fmt.Errorf("failed to create header style: %w", err)
@@ -32,54 +36,88 @@ func WriteXLSX(filePath string, data *OutputData) error {
 		return fmt.Errorf("failed to create priority style: %w", err)
 	}
 
-	// Build headers (titles + unassigned if it has items)
-	headers := make([]string, 0, len(data.TitleOrder)+1)
-	headers = append(headers, data.TitleOrder...)
+	// Build group titles (titles + unassigned if it has items)
+	groupTitles := make([]string, 0, len(data.TitleOrder)+1)
+	groupTitles = append(groupTitles, data.TitleOrder...)
 	if len(data.Grouped["unassigned"]) > 0 {
-		headers = append(headers, "unassigned")
+		groupTitles = append(groupTitles, "unassigned")
 	}
 
-	// Find the maximum number of rows needed
+	// Calculate columns needed for each group and max rows
+	groupColumns := make([]int, len(groupTitles))
 	maxRows := 0
-	for _, title := range headers {
-		if locs := data.Grouped[title]; len(locs) > maxRows {
-			maxRows = len(locs)
+	for i, title := range groupTitles {
+		locs := data.Grouped[title]
+		cols := data.ColumnsNeeded(len(locs))
+		groupColumns[i] = cols
+
+		// With spillover, max rows is capped at Size (or actual count if less)
+		rowsForGroup := len(locs)
+		if data.Size > 0 && rowsForGroup > data.Size {
+			rowsForGroup = data.Size
+		}
+		if rowsForGroup > maxRows {
+			maxRows = rowsForGroup
 		}
 	}
 
-	// Write headers (row 1)
-	for col, title := range headers {
-		cell, _ := excelize.CoordinatesToCellName(col+1, 1)
-		f.SetCellValue(sheetName, cell, title)
-		f.SetCellStyle(sheetName, cell, cell, headerStyle)
-	}
+	// Track current column position (1-based for Excel)
+	col := 1
 
-	// Write data rows (starting at row 2)
-	for row := 0; row < maxRows; row++ {
-		for col, title := range headers {
-			locs := data.Grouped[title]
-			if row < len(locs) {
-				loc := locs[row]
-				cell, _ := excelize.CoordinatesToCellName(col+1, row+2)
-				f.SetCellValue(sheetName, cell, loc)
+	// Write each group
+	for i, title := range groupTitles {
+		locs := data.Grouped[title]
+		cols := groupColumns[i]
+		startCol := col
 
-				// Highlight priority locations in yellow
-				if data.IsPriority(loc) {
-					f.SetCellStyle(sheetName, cell, cell, priorityStyle)
-				}
+		// Write header - merge if multiple columns
+		startCell, _ := excelize.CoordinatesToCellName(startCol, 1)
+		endCell, _ := excelize.CoordinatesToCellName(startCol+cols-1, 1)
+
+		f.SetCellValue(sheetName, startCell, title)
+		f.SetCellStyle(sheetName, startCell, endCell, headerStyle)
+
+		if cols > 1 {
+			f.MergeCell(sheetName, startCell, endCell)
+		}
+
+		// Set column widths for all columns in this group
+		for c := 0; c < cols; c++ {
+			colName, _ := excelize.ColumnNumberToName(startCol + c)
+			width := float64(len(title) + 5)
+			if width < 15 {
+				width = 15
+			}
+			f.SetColWidth(sheetName, colName, colName, width)
+		}
+
+		// Write data with spillover
+		for idx, loc := range locs {
+			var locCol, locRow int
+			if data.Size > 0 {
+				locCol = startCol + (idx / data.Size)
+				locRow = 2 + (idx % data.Size)
+			} else {
+				locCol = startCol
+				locRow = 2 + idx
+			}
+
+			cell, _ := excelize.CoordinatesToCellName(locCol, locRow)
+			f.SetCellValue(sheetName, cell, loc)
+
+			// Highlight priority locations in yellow
+			if data.IsPriority(loc) {
+				f.SetCellStyle(sheetName, cell, cell, priorityStyle)
 			}
 		}
-	}
 
-	// Auto-fit column widths (approximate)
-	for col, title := range headers {
-		colName, _ := excelize.ColumnNumberToName(col + 1)
-		// Set width based on header length or a minimum
-		width := float64(len(title) + 5)
-		if width < 15 {
-			width = 15
+		// Move to next group's starting column
+		col = startCol + cols
+
+		// Add gap columns after each group except the last
+		if i < len(groupTitles)-1 {
+			col += data.Gap
 		}
-		f.SetColWidth(sheetName, colName, colName, width)
 	}
 
 	if err := f.SaveAs(filePath); err != nil {

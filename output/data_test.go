@@ -42,7 +42,7 @@ func TestNewOutputData(t *testing.T) {
 	}
 	priorities := []string{"loc1", "loc3"}
 
-	data := NewOutputData(titleOrder, grouped, priorities)
+	data := NewOutputData(titleOrder, grouped, priorities, 1, 20)
 
 	// Check titleOrder is set
 	if len(data.TitleOrder) != 2 {
@@ -69,7 +69,7 @@ func TestNewOutputData(t *testing.T) {
 }
 
 func TestNewOutputData_EmptyPriorities(t *testing.T) {
-	data := NewOutputData([]string{}, nil, []string{})
+	data := NewOutputData([]string{}, nil, []string{}, 0, 0)
 
 	if len(data.PrioritySet) != 0 {
 		t.Errorf("expected empty priority set, got %d items", len(data.PrioritySet))
@@ -82,7 +82,7 @@ func TestNewOutputData_EmptyPriorities(t *testing.T) {
 
 func TestNewOutputData_NilGrouped(t *testing.T) {
 	// Should handle nil grouped without panic
-	data := NewOutputData([]string{"test"}, nil, []string{"loc1"})
+	data := NewOutputData([]string{"test"}, nil, []string{"loc1"}, 0, 0)
 
 	if data.Grouped != nil {
 		t.Error("expected Grouped to be nil")
@@ -91,5 +91,49 @@ func TestNewOutputData_NilGrouped(t *testing.T) {
 	// Priority should still work
 	if !data.IsPriority("loc1") {
 		t.Error("expected loc1 to be priority")
+	}
+}
+
+func TestNewOutputData_Gap(t *testing.T) {
+	data := NewOutputData([]string{"test"}, nil, []string{}, 2, 0)
+
+	if data.Gap != 2 {
+		t.Errorf("expected Gap to be 2, got %d", data.Gap)
+	}
+}
+
+func TestNewOutputData_Size(t *testing.T) {
+	data := NewOutputData([]string{"test"}, nil, []string{}, 0, 20)
+
+	if data.Size != 20 {
+		t.Errorf("expected Size to be 20, got %d", data.Size)
+	}
+}
+
+func TestOutputData_ColumnsNeeded(t *testing.T) {
+	tests := []struct {
+		name      string
+		size      int
+		itemCount int
+		expected  int
+	}{
+		{"no spillover needed", 20, 10, 1},
+		{"exactly at size", 3, 3, 1},
+		{"needs 2 columns", 3, 4, 2},
+		{"needs 4 columns", 3, 11, 4},
+		{"size 0 means no limit", 0, 100, 1},
+		{"empty group", 3, 0, 1},
+		{"size 1 item per column", 1, 5, 5},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			data := &OutputData{Size: tt.size}
+			result := data.ColumnsNeeded(tt.itemCount)
+			if result != tt.expected {
+				t.Errorf("ColumnsNeeded(%d) with size %d = %d, want %d",
+					tt.itemCount, tt.size, result, tt.expected)
+			}
+		})
 	}
 }

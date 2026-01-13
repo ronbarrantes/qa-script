@@ -16,6 +16,8 @@ type Result struct {
 	GroupedLocations       rules.GroupedLocations        // Locations grouped by rule values (a, b, gft, etc.)
 	TitleGroupedLocations  rules.TitleGroupedLocations   // Locations grouped by titles (pallets, efg, etc.)
 	TitleOrder             []string                      // Titles in the order they appear in rules.yaml
+	Gap                    int                           // Number of empty columns between groups
+	Size                   int                           // Max rows per column before spillover
 	TotalCSVRows           int
 	TotalExcelRows         int
 }
@@ -103,6 +105,8 @@ func Process(csvPath, excelPath, rulesPath string) (*Result, error) {
 		GroupedLocations:       grouped,
 		TitleGroupedLocations:  titleGrouped,
 		TitleOrder:             titleOrder,
+		Gap:                    config.Gap,
+		Size:                   config.Size,
 		TotalCSVRows:           csvRows,
 		TotalExcelRows:         excelRows,
 	}, nil
