@@ -12,3 +12,4 @@ groups:
     values: [m, n, s, t, mez]
 
 size: 20
+gap: 1
