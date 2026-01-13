@@ -83,10 +83,19 @@ func WriteXLSX(filePath string, data *OutputData) error {
 			f.MergeCell(sheetName, startCell, endCell)
 		}
 
+		// Calculate max width needed for this group's data
+		maxDataWidth := len(title)
+		for _, loc := range locs {
+			if len(loc) > maxDataWidth {
+				maxDataWidth = len(loc)
+			}
+		}
+
 		// Set column widths for all columns in this group
 		for c := 0; c < cols; c++ {
 			colName, _ := excelize.ColumnNumberToName(startCol + c)
-			width := float64(len(title) + 5)
+			// Add padding for comfortable reading
+			width := float64(maxDataWidth + 2)
 			if width < 15 {
 				width = 15
 			}
