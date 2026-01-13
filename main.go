@@ -50,21 +50,23 @@ func main() {
 		}
 	}
 
-	// Log grouped locations by title
+	// Log grouped locations by title (in YAML order)
 	fmt.Println("\n=== Grouped Locations (by title) ===")
-	var titles []string
-	for title := range result.TitleGroupedLocations {
-		titles = append(titles, title)
-	}
-	sort.Strings(titles)
-
-	for _, title := range titles {
+	for _, title := range result.TitleOrder {
 		locs := result.TitleGroupedLocations[title]
 		if len(locs) > 0 {
 			fmt.Printf("\n[%s] (%d locations)\n", title, len(locs))
 			for _, loc := range locs {
 				fmt.Printf("  - %s\n", loc)
 			}
+		}
+	}
+
+	// Show unassigned at the end if any
+	if locs := result.TitleGroupedLocations["unassigned"]; len(locs) > 0 {
+		fmt.Printf("\n[unassigned] (%d locations)\n", len(locs))
+		for _, loc := range locs {
+			fmt.Printf("  - %s\n", loc)
 		}
 	}
 }

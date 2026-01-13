@@ -51,6 +51,15 @@ func (c *Config) GetAllKeys() []string {
 	return keys
 }
 
+// GetTitlesInOrder returns all group titles in the order they appear in the config
+func (c *Config) GetTitlesInOrder() []string {
+	titles := make([]string, len(c.Groups))
+	for i, group := range c.Groups {
+		titles[i] = group.Title
+	}
+	return titles
+}
+
 // extractLetterPrefix extracts the letter-only prefix after the colon
 // e.g., "SS4:GFT22.B" -> "GFT", "SS4:GF225.C" -> "GF"
 func extractLetterPrefix(location string) string {

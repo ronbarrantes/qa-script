@@ -15,6 +15,7 @@ type Result struct {
 	PriorityLocations      []string                      // Unique sorted locations with QA_HOLD_PICKING
 	GroupedLocations       rules.GroupedLocations        // Locations grouped by rule values (a, b, gft, etc.)
 	TitleGroupedLocations  rules.TitleGroupedLocations   // Locations grouped by titles (pallets, efg, etc.)
+	TitleOrder             []string                      // Titles in the order they appear in rules.yaml
 	TotalCSVRows           int
 	TotalExcelRows         int
 }
@@ -92,12 +93,14 @@ func Process(csvPath, excelPath, rulesPath string) (*Result, error) {
 
 	grouped := rules.GroupLocations(locations, config)
 	titleGrouped := rules.GroupByTitle(grouped, config)
+	titleOrder := config.GetTitlesInOrder()
 
 	return &Result{
 		Locations:              locations,
 		PriorityLocations:      priorities,
 		GroupedLocations:       grouped,
 		TitleGroupedLocations:  titleGrouped,
+		TitleOrder:             titleOrder,
 		TotalCSVRows:           csvRows,
 		TotalExcelRows:         excelRows,
 	}, nil
