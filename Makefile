@@ -1,6 +1,7 @@
-.PHONY: build build-cli build-gui build-all-cli test clean dev \
+.PHONY: build build-cli build-gui build-webgui build-all-cli test clean dev \
         build-cli-windows build-cli-linux build-cli-mac \
-        build-gui-windows build-gui-linux build-gui-mac
+        build-gui-windows build-gui-linux build-gui-mac \
+        build-webgui-windows build-webgui-linux build-webgui-mac build-all-webgui
 
 # Default target - build for current platform
 all: build
@@ -81,6 +82,48 @@ build-gui-mac:
 	@echo "✓ GUI built for macOS (universal)"
 
 # =============================================================================
+# Web GUI Builds (Browser-based alternative - no Wails required)
+# =============================================================================
+
+# Build Web GUI for current platform
+build-webgui:
+	@echo "Building Web GUI for current platform..."
+	@mkdir -p bin
+	go build -o bin/qa-webgui ./cmd/webgui/
+	@echo "✓ Web GUI built: bin/qa-webgui"
+
+# Build Web GUI for all platforms
+build-all-webgui: build-webgui-windows build-webgui-linux build-webgui-mac
+	@echo "✓ All Web GUI builds complete"
+
+# Build Web GUI for Windows
+build-webgui-windows:
+	@echo "Building Web GUI for Windows..."
+	@mkdir -p bin
+	GOOS=windows GOARCH=amd64 go build -o bin/qa-webgui-windows-amd64.exe ./cmd/webgui/
+	@echo "✓ bin/qa-webgui-windows-amd64.exe"
+
+# Build Web GUI for Linux
+build-webgui-linux:
+	@echo "Building Web GUI for Linux..."
+	@mkdir -p bin
+	GOOS=linux GOARCH=amd64 go build -o bin/qa-webgui-linux-amd64 ./cmd/webgui/
+	@echo "✓ bin/qa-webgui-linux-amd64"
+
+# Build Web GUI for macOS
+build-webgui-mac:
+	@echo "Building Web GUI for macOS..."
+	@mkdir -p bin
+	GOOS=darwin GOARCH=arm64 go build -o bin/qa-webgui-darwin-arm64 ./cmd/webgui/
+	GOOS=darwin GOARCH=amd64 go build -o bin/qa-webgui-darwin-amd64 ./cmd/webgui/
+	@echo "✓ bin/qa-webgui-darwin-arm64"
+	@echo "✓ bin/qa-webgui-darwin-amd64"
+
+# Run Web GUI
+run-webgui: build-webgui
+	./bin/qa-webgui
+
+# =============================================================================
 # Development & Testing
 # =============================================================================
 
@@ -123,11 +166,19 @@ help:
 	@echo "  build-cli-linux     Build CLI for Linux (amd64)"
 	@echo "  build-cli-mac       Build CLI for macOS (arm64 + amd64)"
 	@echo ""
-	@echo "GUI Targets:"
+	@echo "GUI Targets (Wails - requires Wails CLI):"
 	@echo "  build-gui           Build GUI for current platform"
 	@echo "  build-gui-windows   Build GUI for Windows"
 	@echo "  build-gui-linux     Build GUI for Linux"
 	@echo "  build-gui-mac       Build GUI for macOS (universal)"
+	@echo ""
+	@echo "Web GUI Targets (Browser-based - no dependencies):"
+	@echo "  build-webgui           Build Web GUI for current platform"
+	@echo "  build-all-webgui       Build Web GUI for all platforms"
+	@echo "  build-webgui-windows   Build Web GUI for Windows"
+	@echo "  build-webgui-linux     Build Web GUI for Linux"
+	@echo "  build-webgui-mac       Build Web GUI for macOS"
+	@echo "  run-webgui             Build and run Web GUI"
 	@echo ""
 	@echo "Other:"
 	@echo "  test                Run all tests"
