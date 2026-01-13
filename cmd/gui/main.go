@@ -30,7 +30,9 @@ func main() {
 		},
 		DragAndDrop: &options.DragAndDrop{
 			EnableFileDrop:     true,
-			DisableWebViewDrop: false,
+			DisableWebViewDrop: true, // Required for Windows - WebView2 doesn't handle native file drops properly
+			CSSDropProperty:    "--drop-target",
+			CSSDropValue:       "drop",
 		},
 	})
 
