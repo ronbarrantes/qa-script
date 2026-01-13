@@ -37,13 +37,42 @@ func main() {
 		log.Fatal(err)
 	}
 
-	// Log the Excel data
-	fmt.Println("\n=== Priorities (Excel) ===")
-	fmt.Printf("Sheet: %s\n", excel.Sheet)
-	fmt.Printf("Headers: %v\n", excel.Headers)
-	fmt.Println("---")
-	for i, row := range excel.Rows {
-		fmt.Printf("%d: %v\n", i+1, row)
+	// Get column indices
+	tagIdx := excel.GetColumnIndex("Container Tag")
+	if tagIdx == -1 {
+		log.Fatal("Container Tag column not found")
 	}
-	fmt.Printf("\nTotal: %d rows\n", len(excel.Rows))
+	locIdx := excel.GetColumnIndex("Current Location")
+	if locIdx == -1 {
+		log.Fatal("Current Location column not found")
+	}
+
+	// Filter by QA_HOLD_PICKING and extract unique Current Locations
+	prioritySet := make(map[string]struct{})
+	for _, row := range excel.Rows {
+		if tagIdx < len(row) && row[tagIdx] == "QA_HOLD_PICKING" {
+			if locIdx < len(row) {
+				prioritySet[row[locIdx]] = struct{}{}
+			}
+		}
+	}
+
+	// Convert to sorted slice
+	priorityLocations := location.UniqueAndSort(mapKeys(prioritySet))
+
+	// Log the priority locations
+	fmt.Println("\n=== Priority Locations (QA_HOLD_PICKING) ===")
+	for i, loc := range priorityLocations {
+		fmt.Printf("%d: %s\n", i+1, loc)
+	}
+	fmt.Printf("\nTotal: %d unique priority locations\n", len(priorityLocations))
+}
+
+// mapKeys extracts keys from a set map
+func mapKeys(m map[string]struct{}) []string {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	return keys
 }
