@@ -21,17 +21,9 @@ func WriteXLSX(filePath string, data *OutputData) error {
 
 	// Create styles
 	// Note: excelize expects hex colors WITHOUT the # prefix
-	// Header: black text on white background, bold, centered with thin border
+	// Header: bold black text only, no border or background
 	headerStyle, err := f.NewStyle(&excelize.Style{
-		Font:      &excelize.Font{Bold: true, Color: "000000"},
-		Fill:      excelize.Fill{Type: "pattern", Color: []string{"FFFFFF"}, Pattern: 1},
-		Alignment: &excelize.Alignment{Horizontal: "center"},
-		Border: []excelize.Border{
-			{Type: "top", Color: "000000", Style: 1},
-			{Type: "bottom", Color: "000000", Style: 1},
-			{Type: "left", Color: "000000", Style: 1},
-			{Type: "right", Color: "000000", Style: 1},
-		},
+		Font: &excelize.Font{Bold: true, Color: "000000"},
 	})
 	if err != nil {
 		return fmt.Errorf("failed to create header style: %w", err)
