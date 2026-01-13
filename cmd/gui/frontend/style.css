@@ -55,6 +55,7 @@ h1 {
     text-align: center;
     cursor: pointer;
     transition: all 0.2s ease;
+    --drop-target: drop; /* Required for Wails native file drop on Windows */
 }
 
 .drop-zone:hover {

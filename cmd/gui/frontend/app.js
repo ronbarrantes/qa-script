@@ -12,15 +12,47 @@ document.addEventListener('DOMContentLoaded', () => {
         selectFile('priorities');
     });
 
-    // Handle Wails file drop events
-    window.runtime?.EventsOn('wails:file-drop', (files) => {
-        if (files && files.length > 0) {
-            const file = files[0];
-            if (file.endsWith('.csv')) {
+    // Handle Wails native file drop events (required for Windows)
+    // The event provides x, y coordinates and files array
+    window.runtime?.EventsOn('wails:file-drop', (x, y, files) => {
+        if (!files || files.length === 0) return;
+        
+        const file = files[0];
+        const locationsZone = document.getElementById('locations-zone');
+        const prioritiesZone = document.getElementById('priorities-zone');
+        
+        // Get element at drop coordinates to determine which zone
+        const dropTarget = document.elementFromPoint(x, y);
+        
+        // Check if drop was on locations zone
+        if (locationsZone.contains(dropTarget) || dropTarget === locationsZone) {
+            if (file.toLowerCase().endsWith('.csv')) {
                 setFile('locations', file);
-            } else if (file.endsWith('.xlsx')) {
-                setFile('priorities', file);
+            } else {
+                showStatus('Please drop a CSV file for locations', 'error');
+                showZoneError('locations');
             }
+            return;
+        }
+        
+        // Check if drop was on priorities zone
+        if (prioritiesZone.contains(dropTarget) || dropTarget === prioritiesZone) {
+            if (file.toLowerCase().endsWith('.xlsx')) {
+                setFile('priorities', file);
+            } else {
+                showStatus('Please drop an XLSX file for priorities', 'error');
+                showZoneError('priorities');
+            }
+            return;
+        }
+        
+        // File dropped outside specific zones - auto-detect by extension
+        if (file.toLowerCase().endsWith('.csv')) {
+            setFile('locations', file);
+        } else if (file.toLowerCase().endsWith('.xlsx')) {
+            setFile('priorities', file);
+        } else {
+            showStatus('Unsupported file type. Please use CSV or XLSX files.', 'error');
         }
     });
 });
@@ -38,20 +70,8 @@ function handleDragLeave(event) {
 function handleDrop(event, type) {
     event.preventDefault();
     event.currentTarget.classList.remove('drag-over');
-    
-    // Get dropped files
-    const files = event.dataTransfer.files;
-    if (files.length > 0) {
-        const file = files[0];
-        // For web file drops, we need to use the Wails backend
-        // The actual path will be handled by Wails file drop event
-    }
-    
-    // Also check for file path in text (from Wails drop)
-    const text = event.dataTransfer.getData('text');
-    if (text) {
-        setFile(type, text);
-    }
+    // On Windows, native file drop is handled by Wails via wails:file-drop event
+    // The webview's dataTransfer doesn't contain proper file paths on Windows
 }
 
 // File selection via dialog
