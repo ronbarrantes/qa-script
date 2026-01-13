@@ -51,9 +51,14 @@ build-cli-mac:
 # =============================================================================
 
 # Build GUI for current platform
+# Note: On Linux with Ubuntu 24.04+, use build-gui-linux target for webkit2gtk-4.1 support
 build-gui:
 	@echo "Building GUI for current platform..."
+ifeq ($(shell uname),Linux)
+	cd cmd/gui && wails build -tags webkit2_41
+else
 	cd cmd/gui && wails build
+endif
 	@echo "✓ GUI built: cmd/gui/build/bin/"
 
 # Build GUI for Windows
@@ -63,9 +68,10 @@ build-gui-windows:
 	@echo "✓ GUI built for Windows"
 
 # Build GUI for Linux
+# Note: Uses webkit2_41 tag for Ubuntu 24.04+ which ships with webkit2gtk-4.1
 build-gui-linux:
 	@echo "Building GUI for Linux..."
-	cd cmd/gui && wails build -platform linux/amd64
+	cd cmd/gui && wails build -platform linux/amd64 -tags webkit2_41
 	@echo "✓ GUI built for Linux"
 
 # Build GUI for macOS
