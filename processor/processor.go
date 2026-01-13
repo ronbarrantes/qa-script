@@ -74,6 +74,8 @@ func LoadPriorities(excelPath string) ([]string, int, error) {
 }
 
 // Process loads both files and returns the combined result
+// TODO: Add validation to check that Excel locations are a subset of CSV locations
+//       (warn about priority locations that don't exist in the CSV file)
 func Process(csvPath, excelPath, rulesPath string) (*Result, error) {
 	locations, csvRows, err := LoadLocations(csvPath)
 	if err != nil {
