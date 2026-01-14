@@ -1,6 +1,6 @@
 {
   "$schema": "https://wails.io/schemas/config.v2.json",
-  "name": "qa-location-grouper",
+  "name": "qa-loc-tool",
   "outputfilename": "qa-gui",
   "frontend:install": "",
   "frontend:build": "",
