@@ -13,7 +13,9 @@ import (
 )
 
 func main() {
-	rulesPath, err := config.EnsureRulesFile(".")
+	// Use Documents folder for rules (same as GUI apps)
+	// This ensures consistent behavior between dev and production
+	rulesPath, err := config.EnsureDefaultRulesFile()
 	if err != nil {
 		log.Fatal(err)
 	}

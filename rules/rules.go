@@ -28,14 +28,24 @@ type GroupedLocations map[string][]string
 
 // LoadConfig reads and parses the rules.yaml file
 func LoadConfig(path string) (*Config, error) {
+	fmt.Printf("Loading rules from: %s\n", path)
+
 	data, err := os.ReadFile(path)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read config: %w", err)
+		return nil, fmt.Errorf("failed to read config from %s: %w", path, err)
 	}
+
+	fmt.Printf("Read %d bytes from rules file\n", len(data))
 
 	var config Config
 	if err := yaml.Unmarshal(data, &config); err != nil {
 		return nil, fmt.Errorf("failed to parse config: %w", err)
+	}
+
+	// Log what was loaded for debugging
+	fmt.Printf("Loaded rules: %d groups, size=%d, gap=%d\n", len(config.Groups), config.Size, config.Gap)
+	for _, g := range config.Groups {
+		fmt.Printf("  - Group '%s': %v\n", g.Title, g.Values)
 	}
 
 	return &config, nil
