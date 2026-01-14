@@ -1,15 +1,15 @@
 groups:
-  - title: "pallets"
+  - title: "Pallets"
     values: [a, b, c, lud, prm, slp]
 
-  - title: "efg"
+  - title: "EFG"
     values: [e, f, g, gft, hvc, hwk, hvb]
 
-  - title: "hjkl"
+  - title: "HJKL"
     values: [h, j, k, l, wiz]
 
-  - title: "mnst"
+  - title: "MNST"
     values: [m, n, s, t, mez]
 
-size: 20
+size: 15
 gap: 1
