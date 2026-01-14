@@ -37,7 +37,7 @@ type App struct {
 
 func main() {
 	// Create temp directory for uploaded files
-	tempDir, err := os.MkdirTemp("", "qa-grouper-*")
+	tempDir, err := os.MkdirTemp("", "qa-loc-tool-*")
 	if err != nil {
 		log.Fatal("Failed to create temp directory:", err)
 	}

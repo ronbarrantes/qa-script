@@ -11,7 +11,7 @@ import (
 //go:embed default_rules.yaml
 var DefaultRulesYAML []byte
 
-const DefaultRulesFileName = "rules.yaml"
+const DefaultRulesFileName = "qa_loc_rules.yaml"
 
 // GetDefaultRulesDir returns the default directory for storing rules.yaml
 // This is the user's Documents folder, which is a standard location for user configuration
