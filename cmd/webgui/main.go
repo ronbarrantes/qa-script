@@ -43,6 +43,15 @@ func main() {
 	}
 	defer os.RemoveAll(tempDir)
 
+	// Ensure rules.yaml exists in Documents folder on startup
+	// This allows users to configure rules before processing their first file
+	rulesPath, err := config.EnsureDefaultRulesFile()
+	if err != nil {
+		log.Printf("Warning: failed to ensure rules file: %v", err)
+	} else {
+		log.Printf("Rules file location: %s", rulesPath)
+	}
+
 	app := &App{
 		tempDir:      tempDir,
 		shutdownChan: make(chan struct{}),
@@ -255,8 +264,8 @@ func (a *App) handleProcess(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Ensure rules.yaml exists in temp directory
-	rulesPath, err := config.EnsureRulesFile(a.tempDir)
+	// Get rules.yaml from Documents folder
+	rulesPath, err := config.EnsureDefaultRulesFile()
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to ensure rules file: %v", err), http.StatusInternalServerError)
 		return

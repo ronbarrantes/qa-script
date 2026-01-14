@@ -29,6 +29,15 @@ func NewApp() *App {
 // startup is called when the app starts
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
+
+	// Ensure rules.yaml exists in Documents folder on startup
+	// This allows users to configure rules before processing their first file
+	rulesPath, err := config.EnsureDefaultRulesFile()
+	if err != nil {
+		fmt.Printf("Warning: failed to ensure rules file: %v\n", err)
+	} else {
+		fmt.Printf("Rules file location: %s\n", rulesPath)
+	}
 }
 
 // SetLocationsFile sets the locations CSV file path
@@ -86,9 +95,8 @@ func (a *App) Process() (string, error) {
 		return "", fmt.Errorf("no priorities file selected")
 	}
 
-	// Ensure rules.yaml exists in the same directory as locations file
-	rulesDir := filepath.Dir(a.locationsFile)
-	rulesPath, err := config.EnsureRulesFile(rulesDir)
+	// Get rules.yaml from Documents folder
+	rulesPath, err := config.EnsureDefaultRulesFile()
 	if err != nil {
 		return "", fmt.Errorf("failed to ensure rules file: %w", err)
 	}
@@ -109,7 +117,8 @@ func (a *App) Process() (string, error) {
 	)
 
 	// Generate output filename in same directory as locations file
-	outputPath := filepath.Join(rulesDir, "locations_output.xlsx")
+	outputDir := filepath.Dir(a.locationsFile)
+	outputPath := filepath.Join(outputDir, "locations_output.xlsx")
 
 	// Write XLSX output
 	if err := output.WriteXLSX(outputPath, outputData); err != nil {
