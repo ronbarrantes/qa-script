@@ -24,7 +24,16 @@ The output file (`locations_output.xlsx`) is saved in the same folder as your CS
 
 ## Configuration
 
-On first run, a `rules.yaml` file is created in your CSV folder:
+On first run, a `rules.yaml` file is created in your **Documents folder** (`~/Documents/rules.yaml` on macOS/Linux, `C:\Users\<name>\Documents\rules.yaml` on Windows).
+
+The app will log which rules file it's using when processing, so you can verify the correct file is loaded:
+```
+Using existing rules file: /Users/you/Documents/rules.yaml (size: 241 bytes, modified: 2024-01-15 10:30:00)
+Loading rules from: /Users/you/Documents/rules.yaml
+Loaded rules: 4 groups, size=20, gap=1
+```
+
+Example `rules.yaml`:
 
 ```yaml
 groups:
@@ -38,6 +47,8 @@ groups:
 size: 20  # Max rows per column before spillover
 gap: 1    # Empty columns between groups
 ```
+
+> **Note:** Edit `~/Documents/rules.yaml` to customize groupings. Changes take effect on the next "Process" run (no app restart needed).
 
 ### Matching Rules
 
@@ -58,8 +69,10 @@ qa-cli -locations data.csv -priorities priorities.xlsx
 Options:
 - `-csv output.csv` — CSV output path (default: output.csv)
 - `-xlsx output.xlsx` — Excel output path (default: output.xlsx)
-- `-rules-dir .` — Directory for rules.yaml
+- `-rules-dir <dir>` — Directory for rules.yaml (default: current directory)
 - `-verbose` — Show detailed output
+
+> **Note:** The CLI defaults to using `rules.yaml` in the current directory. Use `-rules-dir ~/Documents` to share rules with the GUI apps.
 
 ## Building from Source
 
