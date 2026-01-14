@@ -55,12 +55,22 @@ func EnsureRulesFile(dir string) (string, error) {
 	rulesPath := filepath.Join(dir, DefaultRulesFileName)
 
 	// Check if file exists
-	if _, err := os.Stat(rulesPath); os.IsNotExist(err) {
-		// Create the file from embedded default
-		if err := os.WriteFile(rulesPath, DefaultRulesYAML, 0644); err != nil {
-			return "", fmt.Errorf("failed to create rules file: %w", err)
+	info, err := os.Stat(rulesPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			// File doesn't exist - create from embedded default
+			if err := os.WriteFile(rulesPath, DefaultRulesYAML, 0644); err != nil {
+				return "", fmt.Errorf("failed to create rules file: %w", err)
+			}
+			fmt.Printf("Created default rules file: %s\n", rulesPath)
+		} else {
+			// Some other error (permission, etc.) - return the error
+			return "", fmt.Errorf("failed to check rules file: %w", err)
 		}
-		fmt.Printf("Created default rules file: %s\n", rulesPath)
+	} else {
+		// File exists - log its details for debugging
+		fmt.Printf("Using existing rules file: %s (size: %d bytes, modified: %s)\n",
+			rulesPath, info.Size(), info.ModTime().Format("2006-01-02 15:04:05"))
 	}
 
 	return rulesPath, nil
