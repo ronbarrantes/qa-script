@@ -9,7 +9,7 @@ import (
 // WriteXLSX writes the grouped locations to an Excel file
 // Each column is a title group with the title as the header
 // Priority locations are highlighted in yellow
-// Gap columns are inserted between groups based on data.Gap
+// Gap columns are inserted between groups based on data.ColumnGap
 // MaxRows controls max rows per column before spillover
 // Headers are merged across spillover columns
 func WriteXLSX(filePath string, data *OutputData) error {
@@ -131,7 +131,7 @@ func WriteXLSX(filePath string, data *OutputData) error {
 
 		// Add gap columns after each group except the last
 		if i < len(groupTitles)-1 {
-			col += data.Gap
+			col += data.ColumnGap
 		}
 	}
 

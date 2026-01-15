@@ -94,11 +94,11 @@ func TestNewOutputData_NilGrouped(t *testing.T) {
 	}
 }
 
-func TestNewOutputData_Gap(t *testing.T) {
+func TestNewOutputData_ColumnGap(t *testing.T) {
 	data := NewOutputData([]string{"test"}, nil, []string{}, 2, 0)
 
-	if data.Gap != 2 {
-		t.Errorf("expected Gap to be 2, got %d", data.Gap)
+	if data.ColumnGap != 2 {
+		t.Errorf("expected ColumnGap to be 2, got %d", data.ColumnGap)
 	}
 }
 

@@ -7,7 +7,7 @@ type OutputData struct {
 	TitleOrder  []string
 	Grouped     rules.TitleGroupedLocations
 	PrioritySet map[string]struct{}
-	Gap         int // Number of empty columns between groups
+	ColumnGap   int // Number of empty columns between groups
 	MaxRows     int // Max rows per column before spillover (0 = no limit)
 }
 
@@ -18,7 +18,7 @@ func (d *OutputData) IsPriority(location string) bool {
 }
 
 // NewOutputData creates an OutputData from processor results
-func NewOutputData(titleOrder []string, grouped rules.TitleGroupedLocations, priorities []string, gap, maxRows int) *OutputData {
+func NewOutputData(titleOrder []string, grouped rules.TitleGroupedLocations, priorities []string, columnGap, maxRows int) *OutputData {
 	prioritySet := make(map[string]struct{}, len(priorities))
 	for _, p := range priorities {
 		prioritySet[p] = struct{}{}
@@ -28,7 +28,7 @@ func NewOutputData(titleOrder []string, grouped rules.TitleGroupedLocations, pri
 		TitleOrder:  titleOrder,
 		Grouped:     grouped,
 		PrioritySet: prioritySet,
-		Gap:         gap,
+		ColumnGap:   columnGap,
 		MaxRows:     maxRows,
 	}
 }

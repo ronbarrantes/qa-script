@@ -8,7 +8,7 @@ import (
 
 // WriteCSV writes the grouped locations to a CSV file
 // Each column is a title group with the title as the header
-// Gap columns are inserted between groups based on data.Gap
+// Gap columns are inserted between groups based on data.ColumnGap
 // MaxRows controls max rows per column before spillover
 func WriteCSV(filePath string, data *OutputData) error {
 	file, err := os.Create(filePath)
@@ -58,7 +58,7 @@ func WriteCSV(filePath string, data *OutputData) error {
 		}
 		// Add gap columns after each group except the last
 		if i < len(groupTitles)-1 {
-			for g := 0; g < data.Gap; g++ {
+			for g := 0; g < data.ColumnGap; g++ {
 				headers = append(headers, "")
 			}
 		}
@@ -91,7 +91,7 @@ func WriteCSV(filePath string, data *OutputData) error {
 
 			// Add gap columns after each group except the last
 			if i < len(groupTitles)-1 {
-				for g := 0; g < data.Gap; g++ {
+				for g := 0; g < data.ColumnGap; g++ {
 					record = append(record, "")
 				}
 			}

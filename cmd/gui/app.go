@@ -106,7 +106,7 @@ func (a *App) Process() (string, error) {
 		result.TitleOrder,
 		result.TitleGroupedLocations,
 		result.PriorityLocations,
-		result.Gap,
+		result.ColumnGap,
 		result.MaxRows,
 	)
 

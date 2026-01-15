@@ -331,7 +331,7 @@ func (a *App) handleProcess(w http.ResponseWriter, r *http.Request) {
 		result.TitleOrder,
 		result.TitleGroupedLocations,
 		result.PriorityLocations,
-		result.Gap,
+		result.ColumnGap,
 		result.MaxRows,
 	)
 

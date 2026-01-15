@@ -65,7 +65,7 @@ func main() {
 		result.TitleOrder,
 		result.TitleGroupedLocations,
 		result.PriorityLocations,
-		result.Gap,
+		result.ColumnGap,
 		result.MaxRows,
 	)
 

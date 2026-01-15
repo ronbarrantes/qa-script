@@ -12,4 +12,4 @@ groups:
     values: [m, n, s, t, mez]
 
 max_rows: 20
-gap: 1
+column_gap: 1

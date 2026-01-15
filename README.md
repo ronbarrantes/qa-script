@@ -35,8 +35,8 @@ groups:
   - title: bulk
     values: [h, lud]
 
-max_rows: 20  # Max rows per column before spillover
-gap: 1        # Empty columns between groups
+max_rows: 20    # Max rows per column before spillover
+column_gap: 1   # Empty columns between groups
 ```
 
 ### Matching Rules
