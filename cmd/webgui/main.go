@@ -336,7 +336,7 @@ func (a *App) handleProcess(w http.ResponseWriter, r *http.Request) {
 	)
 
 	// Generate output filename in temp directory
-	outputPath := filepath.Join(a.tempDir, "locations_output.xlsx")
+	outputPath := filepath.Join(a.tempDir, "location_priorities.xlsx")
 
 	// Write XLSX output
 	if err := output.WriteXLSX(outputPath, outputData); err != nil {
@@ -347,8 +347,8 @@ func (a *App) handleProcess(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"success":      true,
-		"downloadUrl":  "/api/download?file=locations_output.xlsx",
-		"filename":     "locations_output.xlsx",
+		"downloadUrl":  "/api/download?file=location_priorities.xlsx",
+		"filename":     "location_priorities.xlsx",
 	})
 }
 
