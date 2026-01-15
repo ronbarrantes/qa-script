@@ -192,6 +192,62 @@ func TestWriteXLSX_ColumnWidth(t *testing.T) {
 	}
 }
 
+func TestWriteXLSX_EmptyGroupsOmitted(t *testing.T) {
+	// Test that empty groups are not included in the output
+	grouped := rules.TitleGroupedLocations{
+		"Pallets":   []string{},                    // Empty - should be omitted
+		"Shelves":   []string{"S1", "S2", "S3"},    // Has items - should be included
+		"FloorLocs": []string{},                    // Empty - should be omitted
+		"Bins":      []string{"B1", "B2"},          // Has items - should be included
+	}
+
+	// TitleOrder includes all groups, but empty ones should be skipped
+	data := NewOutputData([]string{"Pallets", "Shelves", "FloorLocs", "Bins"}, grouped, nil, 1, 0)
+
+	tmpDir := t.TempDir()
+	filePath := filepath.Join(tmpDir, "test.xlsx")
+	if err := WriteXLSX(filePath, data); err != nil {
+		t.Fatalf("WriteXLSX failed: %v", err)
+	}
+
+	f, err := excelize.OpenFile(filePath)
+	if err != nil {
+		t.Fatalf("Failed to open file: %v", err)
+	}
+	defer f.Close()
+
+	sheetName := "Locations"
+
+	// Collect all header values from row 1
+	headers := make([]string, 0)
+	for col := 1; col <= 20; col++ {
+		cell, _ := excelize.CoordinatesToCellName(col, 1)
+		val, _ := f.GetCellValue(sheetName, cell)
+		if val != "" {
+			headers = append(headers, val)
+		}
+	}
+
+	// Should only have "Shelves" and "Bins" headers (empty groups omitted)
+	expectedHeaders := []string{"Shelves", "Bins"}
+	if len(headers) != len(expectedHeaders) {
+		t.Errorf("expected %d headers, got %d: %v", len(expectedHeaders), len(headers), headers)
+	}
+
+	for i, want := range expectedHeaders {
+		if i < len(headers) && headers[i] != want {
+			t.Errorf("header %d: got %q, want %q", i, headers[i], want)
+		}
+	}
+
+	// Verify "Pallets" and "FloorLocs" are NOT in the output
+	for _, h := range headers {
+		if h == "Pallets" || h == "FloorLocs" {
+			t.Errorf("empty group %q should not be in output", h)
+		}
+	}
+}
+
 func TestWriteXLSX_PriorityHighlight(t *testing.T) {
 	grouped := rules.TitleGroupedLocations{
 		"Group": []string{"item1", "item2", "item3"},

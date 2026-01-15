@@ -38,9 +38,13 @@ func WriteXLSX(filePath string, data *OutputData) error {
 		return fmt.Errorf("failed to create priority style: %w", err)
 	}
 
-	// Build group titles (titles + unassigned if it has items)
+	// Build group titles (only including groups that have items)
 	groupTitles := make([]string, 0, len(data.TitleOrder)+1)
-	groupTitles = append(groupTitles, data.TitleOrder...)
+	for _, title := range data.TitleOrder {
+		if len(data.Grouped[title]) > 0 {
+			groupTitles = append(groupTitles, title)
+		}
+	}
 	if len(data.Grouped["unassigned"]) > 0 {
 		groupTitles = append(groupTitles, "unassigned")
 	}
