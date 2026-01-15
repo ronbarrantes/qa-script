@@ -4,7 +4,9 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
+	goruntime "runtime"
 	"strings"
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
@@ -157,6 +159,28 @@ func (a *App) SelectPrioritiesFile() (string, error) {
 		return "", err
 	}
 	return path, nil
+}
+
+// OpenFile opens a file with the system's default application
+func (a *App) OpenFile(path string) error {
+	if path == "" {
+		return fmt.Errorf("no file path provided")
+	}
+	if _, err := os.Stat(path); os.IsNotExist(err) {
+		return fmt.Errorf("file not found: %s", path)
+	}
+
+	var cmd *exec.Cmd
+	switch goruntime.GOOS {
+	case "darwin":
+		cmd = exec.Command("open", path)
+	case "windows":
+		cmd = exec.Command("rundll32", "url.dll,FileProtocolHandler", path)
+	default: // Linux and others
+		cmd = exec.Command("xdg-open", path)
+	}
+
+	return cmd.Start()
 }
 
 // cleanFilePath removes file:// prefix and handles URL encoding

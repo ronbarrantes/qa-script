@@ -118,6 +118,31 @@ h1 {
     margin-bottom: 20px;
     padding: 10px;
     border-radius: 8px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 10px;
+}
+
+.status-message {
+    cursor: default;
+}
+
+.open-file-btn {
+    padding: 4px 12px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    background: rgba(255, 255, 255, 0.2);
+    color: inherit;
+    transition: all 0.2s ease;
+}
+
+.open-file-btn:hover {
+    background: rgba(255, 255, 255, 0.3);
+    transform: translateY(-1px);
 }
 
 .status.success {

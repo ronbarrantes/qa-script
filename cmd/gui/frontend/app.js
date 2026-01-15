@@ -1,6 +1,7 @@
 // State
 let locationsFile = '';
 let prioritiesFile = '';
+let lastOutputPath = '';
 
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
@@ -166,7 +167,10 @@ async function processFiles() {
     
     try {
         const outputPath = await window.go.main.App.Process();
-        showStatus('✓ Output saved to: ' + outputPath, 'success');
+        lastOutputPath = outputPath;
+        // Extract just the filename for display
+        const fileName = outputPath.split('/').pop().split('\\').pop();
+        showStatusWithOpen('✓ ' + fileName, outputPath);
     } catch (err) {
         showStatus('Error: ' + err, 'error');
     } finally {
@@ -174,15 +178,46 @@ async function processFiles() {
     }
 }
 
+// Open the output file
+async function openOutputFile() {
+    if (!lastOutputPath) return;
+    try {
+        await window.go.main.App.OpenFile(lastOutputPath);
+    } catch (err) {
+        showStatus('Error opening file: ' + err, 'error');
+    }
+}
+
 // Status display helpers
 function showStatus(message, type) {
     const status = document.getElementById('status');
-    status.textContent = message;
+    const statusMessage = document.getElementById('status-message');
+    const openBtn = document.getElementById('open-file-btn');
+    
+    statusMessage.textContent = message;
     status.className = 'status ' + type;
+    openBtn.style.display = 'none';
+}
+
+function showStatusWithOpen(message, fullPath) {
+    const status = document.getElementById('status');
+    const statusMessage = document.getElementById('status-message');
+    const openBtn = document.getElementById('open-file-btn');
+    
+    statusMessage.textContent = message;
+    statusMessage.title = fullPath; // Show full path on hover
+    status.className = 'status success';
+    openBtn.style.display = 'inline-block';
 }
 
 function clearStatus() {
     const status = document.getElementById('status');
-    status.textContent = '';
+    const statusMessage = document.getElementById('status-message');
+    const openBtn = document.getElementById('open-file-btn');
+    
+    statusMessage.textContent = '';
+    statusMessage.title = '';
     status.className = 'status';
+    openBtn.style.display = 'none';
+    lastOutputPath = '';
 }

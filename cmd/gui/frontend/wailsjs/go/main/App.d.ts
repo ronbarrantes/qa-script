@@ -5,6 +5,8 @@ export function GetLocationsFile():Promise<string>;
 
 export function GetPrioritiesFile():Promise<string>;
 
+export function OpenFile(arg1:string):Promise<void>;
+
 export function Process():Promise<string>;
 
 export function Reset():Promise<void>;
