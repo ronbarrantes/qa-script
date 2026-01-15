@@ -111,7 +111,7 @@ func (a *App) Process() (string, error) {
 	)
 
 	// Generate output filename in same directory as locations file
-	outputPath := filepath.Join(rulesDir, "locations_output.xlsx")
+	outputPath := filepath.Join(rulesDir, "location_priorities.xlsx")
 
 	// Write XLSX output
 	if err := output.WriteXLSX(outputPath, outputData); err != nil {

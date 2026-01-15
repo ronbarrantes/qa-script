@@ -11,7 +11,7 @@ A desktop tool that groups warehouse location codes and generates formatted Exce
    - **Priorities XLSX** — Excel file with `Container Tag` and `Current Location` columns
 4. **Click OK** to generate the output
 
-The output file (`locations_output.xlsx`) is saved in the same folder as your CSV file.
+The output file (`location_priorities.xlsx`) is saved in the same folder as your CSV file.
 
 ![GUI Screenshot](cmd/gui/build/appicon.png)
 
