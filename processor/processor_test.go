@@ -51,7 +51,7 @@ func createTestExcel(t *testing.T, sheetName string, data [][]string) string {
 func createTestRulesYAML(t *testing.T, content string) string {
 	t.Helper()
 	tmpDir := t.TempDir()
-	tmpFile := filepath.Join(tmpDir, "rules.yaml")
+	tmpFile := filepath.Join(tmpDir, "qa_loc_rules.yaml")
 	if err := os.WriteFile(tmpFile, []byte(content), 0644); err != nil {
 		t.Fatalf("failed to write test rules YAML: %v", err)
 	}

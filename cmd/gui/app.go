@@ -86,7 +86,7 @@ func (a *App) Process() (string, error) {
 		return "", fmt.Errorf("no priorities file selected")
 	}
 
-	// Ensure rules.yaml exists in the same directory as locations file
+	// Ensure qa_loc_rules.yaml exists in the same directory as locations file
 	rulesDir := filepath.Dir(a.locationsFile)
 	rulesPath, err := config.EnsureRulesFile(rulesDir)
 	if err != nil {
