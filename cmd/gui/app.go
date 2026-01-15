@@ -161,6 +161,43 @@ func (a *App) SelectPrioritiesFile() (string, error) {
 	return path, nil
 }
 
+// ShortenPath returns a display-friendly shortened path
+// Replaces home directory with ~ for cleaner display
+func (a *App) ShortenPath(path string) string {
+	if path == "" {
+		return ""
+	}
+
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		// If we can't get home dir, just return the filename
+		return filepath.Base(path)
+	}
+
+	// Normalize paths for comparison
+	cleanPath := filepath.Clean(path)
+	cleanHome := filepath.Clean(homeDir)
+
+	// Check if path starts with home directory
+	if strings.HasPrefix(cleanPath, cleanHome) {
+		// Replace home directory with ~
+		relativePart := strings.TrimPrefix(cleanPath, cleanHome)
+		return "~" + relativePart
+	}
+
+	// If not under home directory, show just the parent folder + filename
+	// This handles Windows paths like C:\Users\... without showing the full path
+	dir := filepath.Dir(cleanPath)
+	parent := filepath.Base(dir)
+	filename := filepath.Base(cleanPath)
+
+	if parent != "" && parent != "." {
+		return filepath.Join(parent, filename)
+	}
+
+	return filename
+}
+
 // OpenFile opens a file with the system's default application
 func (a *App) OpenFile(path string) error {
 	if path == "" {

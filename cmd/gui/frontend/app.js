@@ -168,9 +168,9 @@ async function processFiles() {
     try {
         const outputPath = await window.go.main.App.Process();
         lastOutputPath = outputPath;
-        // Extract just the filename for display
-        const fileName = outputPath.split('/').pop().split('\\').pop();
-        showStatusWithOpen('✓ ' + fileName, outputPath);
+        // Get shortened path for display (e.g., ~/Downloads/file.xlsx)
+        const displayPath = await window.go.main.App.ShortenPath(outputPath);
+        showStatusWithOpen('✓ ' + displayPath, outputPath);
     } catch (err) {
         showStatus('Error: ' + err, 'error');
     } finally {
