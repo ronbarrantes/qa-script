@@ -30,6 +30,7 @@ var frontendFS embed.FS
 type App struct {
 	locationsFile  string
 	prioritiesFile string
+	rulesFile      string // Optional custom rules.yaml
 	tempDir        string
 	server         *http.Server
 	shutdownChan   chan struct{}
@@ -65,6 +66,7 @@ func main() {
 	// API endpoints
 	mux.HandleFunc("/api/upload-locations", app.handleUploadLocations)
 	mux.HandleFunc("/api/upload-priorities", app.handleUploadPriorities)
+	mux.HandleFunc("/api/upload-rules", app.handleUploadRules)
 	mux.HandleFunc("/api/process", app.handleProcess)
 	mux.HandleFunc("/api/reset", app.handleReset)
 	mux.HandleFunc("/api/status", app.handleStatus)
@@ -239,6 +241,55 @@ func (a *App) handleUploadPriorities(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// handleUploadRules handles uploading an optional custom rules.yaml file
+func (a *App) handleUploadRules(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	// Parse multipart form (max 1 MB for YAML)
+	if err := r.ParseMultipartForm(1 << 20); err != nil {
+		http.Error(w, fmt.Sprintf("Failed to parse form: %v", err), http.StatusBadRequest)
+		return
+	}
+
+	file, header, err := r.FormFile("file")
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to get file: %v", err), http.StatusBadRequest)
+		return
+	}
+	defer file.Close()
+
+	// Validate file extension
+	if !strings.HasSuffix(strings.ToLower(header.Filename), ".yaml") && !strings.HasSuffix(strings.ToLower(header.Filename), ".yml") {
+		http.Error(w, "Rules file must be a YAML file (.yaml or .yml)", http.StatusBadRequest)
+		return
+	}
+
+	// Save to temp directory as rules.yaml
+	destPath := filepath.Join(a.tempDir, "rules.yaml")
+	destFile, err := os.Create(destPath)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to create file: %v", err), http.StatusInternalServerError)
+		return
+	}
+	defer destFile.Close()
+
+	if _, err := io.Copy(destFile, file); err != nil {
+		http.Error(w, fmt.Sprintf("Failed to save file: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	a.rulesFile = destPath
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success":  true,
+		"filename": header.Filename,
+	})
+}
+
 // handleProcess processes the files and generates output
 func (a *App) handleProcess(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
@@ -255,11 +306,17 @@ func (a *App) handleProcess(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Ensure rules.yaml exists in temp directory
-	rulesPath, err := config.EnsureRulesFile(a.tempDir)
-	if err != nil {
-		http.Error(w, fmt.Sprintf("Failed to ensure rules file: %v", err), http.StatusInternalServerError)
-		return
+	// Use custom rules.yaml if uploaded, otherwise create default
+	var rulesPath string
+	if a.rulesFile != "" {
+		rulesPath = a.rulesFile
+	} else {
+		var err error
+		rulesPath, err = config.EnsureRulesFile(a.tempDir)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("Failed to ensure rules file: %v", err), http.StatusInternalServerError)
+			return
+		}
 	}
 
 	// Process the data
@@ -331,9 +388,13 @@ func (a *App) handleReset(w http.ResponseWriter, r *http.Request) {
 	if a.prioritiesFile != "" {
 		os.Remove(a.prioritiesFile)
 	}
+	if a.rulesFile != "" {
+		os.Remove(a.rulesFile)
+	}
 
 	a.locationsFile = ""
 	a.prioritiesFile = ""
+	a.rulesFile = ""
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{"success": true})
@@ -343,6 +404,7 @@ func (a *App) handleReset(w http.ResponseWriter, r *http.Request) {
 func (a *App) handleStatus(w http.ResponseWriter, r *http.Request) {
 	locationsName := ""
 	prioritiesName := ""
+	rulesName := ""
 	
 	if a.locationsFile != "" {
 		locationsName = filepath.Base(a.locationsFile)
@@ -350,11 +412,15 @@ func (a *App) handleStatus(w http.ResponseWriter, r *http.Request) {
 	if a.prioritiesFile != "" {
 		prioritiesName = filepath.Base(a.prioritiesFile)
 	}
+	if a.rulesFile != "" {
+		rulesName = filepath.Base(a.rulesFile)
+	}
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"locationsFile":  locationsName,
 		"prioritiesFile": prioritiesName,
+		"rulesFile":      rulesName,
 	})
 }
 
