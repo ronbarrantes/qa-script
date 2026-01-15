@@ -160,6 +160,57 @@ func TestWriteCSV_SpilloverLayout(t *testing.T) {
 	}
 }
 
+func TestWriteCSV_EmptyGroupsOmitted(t *testing.T) {
+	// Test that empty groups are not included in the output
+	grouped := rules.TitleGroupedLocations{
+		"Pallets":   []string{},                    // Empty - should be omitted
+		"Shelves":   []string{"S1", "S2", "S3"},    // Has items - should be included
+		"FloorLocs": []string{},                    // Empty - should be omitted
+		"Bins":      []string{"B1", "B2"},          // Has items - should be included
+	}
+
+	// TitleOrder includes all groups, but empty ones should be skipped
+	data := NewOutputData([]string{"Pallets", "Shelves", "FloorLocs", "Bins"}, grouped, nil, 1, 0)
+
+	tmpDir := t.TempDir()
+	filePath := filepath.Join(tmpDir, "test.csv")
+	if err := WriteCSV(filePath, data); err != nil {
+		t.Fatalf("WriteCSV failed: %v", err)
+	}
+
+	file, err := os.Open(filePath)
+	if err != nil {
+		t.Fatalf("Failed to open file: %v", err)
+	}
+	defer file.Close()
+
+	reader := csv.NewReader(file)
+	records, err := reader.ReadAll()
+	if err != nil {
+		t.Fatalf("Failed to read CSV: %v", err)
+	}
+
+	// Header should be: Shelves, "", Bins (gap=1 between groups)
+	header := records[0]
+	expectedHeaders := []string{"Shelves", "", "Bins"}
+	if len(header) != len(expectedHeaders) {
+		t.Fatalf("got %d columns, want %d: %v", len(header), len(expectedHeaders), header)
+	}
+
+	for i, want := range expectedHeaders {
+		if header[i] != want {
+			t.Errorf("header[%d] = %q, want %q", i, header[i], want)
+		}
+	}
+
+	// Verify "Pallets" and "FloorLocs" are NOT in the output
+	for _, h := range header {
+		if h == "Pallets" || h == "FloorLocs" {
+			t.Errorf("empty group %q should not be in output", h)
+		}
+	}
+}
+
 func TestWriteCSV_GapColumns(t *testing.T) {
 	grouped := rules.TitleGroupedLocations{
 		"GroupA": []string{"A1", "A2"},
