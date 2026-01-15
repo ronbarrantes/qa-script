@@ -106,8 +106,8 @@ func (a *App) Process() (string, error) {
 		result.TitleOrder,
 		result.TitleGroupedLocations,
 		result.PriorityLocations,
-		result.Gap,
-		result.Size,
+		result.ColumnGap,
+		result.MaxRows,
 	)
 
 	// Generate output filename in same directory as locations file

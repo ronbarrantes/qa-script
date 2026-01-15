@@ -19,7 +19,7 @@ The output file (`location_priorities.xlsx`) is saved in the same folder as your
 
 - **Groups locations** by configurable letter prefixes (e.g., all "A" locations together)
 - **Highlights priority items** (QA_HOLD_PICKING) in yellow
-- **Handles spillover** — columns wrap when they exceed the size limit
+- **Handles spillover** — columns wrap when they exceed the max_rows limit
 - **Sorts intelligently** — alphabetically by letters, then numerically
 
 ## Configuration
@@ -35,8 +35,8 @@ groups:
   - title: bulk
     values: [h, lud]
 
-size: 20  # Max rows per column before spillover
-gap: 1    # Empty columns between groups
+max_rows: 20    # Max rows per column before spillover
+column_gap: 1   # Empty columns between groups
 ```
 
 ### Matching Rules

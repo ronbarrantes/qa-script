@@ -94,45 +94,45 @@ func TestNewOutputData_NilGrouped(t *testing.T) {
 	}
 }
 
-func TestNewOutputData_Gap(t *testing.T) {
+func TestNewOutputData_ColumnGap(t *testing.T) {
 	data := NewOutputData([]string{"test"}, nil, []string{}, 2, 0)
 
-	if data.Gap != 2 {
-		t.Errorf("expected Gap to be 2, got %d", data.Gap)
+	if data.ColumnGap != 2 {
+		t.Errorf("expected ColumnGap to be 2, got %d", data.ColumnGap)
 	}
 }
 
-func TestNewOutputData_Size(t *testing.T) {
+func TestNewOutputData_MaxRows(t *testing.T) {
 	data := NewOutputData([]string{"test"}, nil, []string{}, 0, 20)
 
-	if data.Size != 20 {
-		t.Errorf("expected Size to be 20, got %d", data.Size)
+	if data.MaxRows != 20 {
+		t.Errorf("expected MaxRows to be 20, got %d", data.MaxRows)
 	}
 }
 
 func TestOutputData_ColumnsNeeded(t *testing.T) {
 	tests := []struct {
 		name      string
-		size      int
+		maxRows   int
 		itemCount int
 		expected  int
 	}{
 		{"no spillover needed", 20, 10, 1},
-		{"exactly at size", 3, 3, 1},
+		{"exactly at max_rows", 3, 3, 1},
 		{"needs 2 columns", 3, 4, 2},
 		{"needs 4 columns", 3, 11, 4},
-		{"size 0 means no limit", 0, 100, 1},
+		{"max_rows 0 means no limit", 0, 100, 1},
 		{"empty group", 3, 0, 1},
-		{"size 1 item per column", 1, 5, 5},
+		{"max_rows 1 item per column", 1, 5, 5},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			data := &OutputData{Size: tt.size}
+			data := &OutputData{MaxRows: tt.maxRows}
 			result := data.ColumnsNeeded(tt.itemCount)
 			if result != tt.expected {
-				t.Errorf("ColumnsNeeded(%d) with size %d = %d, want %d",
-					tt.itemCount, tt.size, result, tt.expected)
+				t.Errorf("ColumnsNeeded(%d) with max_rows %d = %d, want %d",
+					tt.itemCount, tt.maxRows, result, tt.expected)
 			}
 		})
 	}

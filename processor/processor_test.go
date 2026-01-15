@@ -282,8 +282,8 @@ SS4:AB100,c4`
     values: [c]
   - title: "test_group_gft"
     values: [g, gft]
-size: 20
-gap: 1`
+max_rows: 20
+column_gap: 1`
 
 	csvPath := createTestCSV(t, csvContent)
 	excelPath := createTestExcel(t, "Sheet1", excelData)
@@ -326,12 +326,12 @@ gap: 1`
 	}
 
 	// Check config values
-	if result.Size != 20 {
-		t.Errorf("Size = %d, want 20", result.Size)
+	if result.MaxRows != 20 {
+		t.Errorf("MaxRows = %d, want 20", result.MaxRows)
 	}
 
-	if result.Gap != 1 {
-		t.Errorf("Gap = %d, want 1", result.Gap)
+	if result.ColumnGap != 1 {
+		t.Errorf("ColumnGap = %d, want 1", result.ColumnGap)
 	}
 
 	// Check title order
@@ -365,8 +365,8 @@ SS4:HV265.H,c4`
     values: [h, hwk]
   - title: "group_c"
     values: [c]
-size: 20
-gap: 0`
+max_rows: 20
+column_gap: 0`
 
 	csvPath := createTestCSV(t, csvContent)
 	excelPath := createTestExcel(t, "Sheet1", excelData)
@@ -428,8 +428,8 @@ func TestProcess_InvalidCSVPath(t *testing.T) {
 	rulesContent := `groups:
   - title: "test"
     values: [a]
-size: 10
-gap: 0`
+max_rows: 10
+column_gap: 0`
 
 	excelPath := createTestExcel(t, "Sheet1", excelData)
 	rulesPath := createTestRulesYAML(t, rulesContent)
@@ -447,8 +447,8 @@ SS4:AB100,c1`
 	rulesContent := `groups:
   - title: "test"
     values: [a]
-size: 10
-gap: 0`
+max_rows: 10
+column_gap: 0`
 
 	csvPath := createTestCSV(t, csvContent)
 	rulesPath := createTestRulesYAML(t, rulesContent)

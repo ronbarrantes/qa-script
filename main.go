@@ -31,8 +31,8 @@ func main() {
 		result.TitleOrder,
 		result.TitleGroupedLocations,
 		result.PriorityLocations,
-		result.Gap,
-		result.Size,
+		result.ColumnGap,
+		result.MaxRows,
 	)
 
 	if err := output.WriteCSV("output.csv", outputData); err != nil {

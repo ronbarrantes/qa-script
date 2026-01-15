@@ -11,5 +11,5 @@ groups:
   - title: "MNST"
     values: [m, n, s, t, mez]
 
-size: 15
-gap: 1
+max_rows: 15
+column_gap: 1

@@ -197,7 +197,7 @@ func TestLoadConfig(t *testing.T) {
     values: [a, b, c]
   - title: efg
     values: [e, f, g]
-size: 20
+max_rows: 20
 `
 	tmpDir := t.TempDir()
 	tmpFile := filepath.Join(tmpDir, "test.yaml")
@@ -218,8 +218,8 @@ size: 20
 		t.Errorf("expected first group title 'pallets', got %q", config.Groups[0].Title)
 	}
 
-	if config.Size != 20 {
-		t.Errorf("expected size 20, got %d", config.Size)
+	if config.MaxRows != 20 {
+		t.Errorf("expected max_rows 20, got %d", config.MaxRows)
 	}
 }
 
