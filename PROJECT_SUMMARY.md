@@ -175,7 +175,7 @@ groups:
   - name: <another group>
     values: <codes>
 
-size: <max rows per column>
+max_rows: <max rows per column>
 ```
 
 ### Value Matching Rules

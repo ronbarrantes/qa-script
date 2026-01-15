@@ -66,7 +66,7 @@ func main() {
 		result.TitleGroupedLocations,
 		result.PriorityLocations,
 		result.Gap,
-		result.Size,
+		result.MaxRows,
 	)
 
 	// Write CSV output

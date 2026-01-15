@@ -17,7 +17,7 @@ type Result struct {
 	TitleGroupedLocations  rules.TitleGroupedLocations   // Locations grouped by titles (pallets, efg, etc.)
 	TitleOrder             []string                      // Titles in the order they appear in qa_loc_rules.yaml
 	Gap                    int                           // Number of empty columns between groups
-	Size                   int                           // Max rows per column before spillover
+	MaxRows                int                           // Max rows per column before spillover
 	TotalCSVRows           int
 	TotalExcelRows         int
 }
@@ -106,7 +106,7 @@ func Process(csvPath, excelPath, rulesPath string) (*Result, error) {
 		TitleGroupedLocations:  titleGrouped,
 		TitleOrder:             titleOrder,
 		Gap:                    config.Gap,
-		Size:                   config.Size,
+		MaxRows:                config.MaxRows,
 		TotalCSVRows:           csvRows,
 		TotalExcelRows:         excelRows,
 	}, nil

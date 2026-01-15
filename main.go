@@ -32,7 +32,7 @@ func main() {
 		result.TitleGroupedLocations,
 		result.PriorityLocations,
 		result.Gap,
-		result.Size,
+		result.MaxRows,
 	)
 
 	if err := output.WriteCSV("output.csv", outputData); err != nil {

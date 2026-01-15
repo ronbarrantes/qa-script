@@ -12,9 +12,9 @@ import (
 
 // Config represents the qa_loc_rules.yaml structure
 type Config struct {
-	Groups []Group `yaml:"groups"`
-	Size   int     `yaml:"size"`
-	Gap    int     `yaml:"gap"` // Number of empty columns between groups (0 = no gap)
+	Groups  []Group `yaml:"groups"`
+	MaxRows int     `yaml:"max_rows"`
+	Gap     int     `yaml:"gap"` // Number of empty columns between groups (0 = no gap)
 }
 
 // Group represents a single group in the config

@@ -332,7 +332,7 @@ func (a *App) handleProcess(w http.ResponseWriter, r *http.Request) {
 		result.TitleGroupedLocations,
 		result.PriorityLocations,
 		result.Gap,
-		result.Size,
+		result.MaxRows,
 	)
 
 	// Generate output filename in temp directory

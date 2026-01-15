@@ -9,7 +9,7 @@ import (
 // WriteCSV writes the grouped locations to a CSV file
 // Each column is a title group with the title as the header
 // Gap columns are inserted between groups based on data.Gap
-// Size controls max rows per column before spillover
+// MaxRows controls max rows per column before spillover
 func WriteCSV(filePath string, data *OutputData) error {
 	file, err := os.Create(filePath)
 	if err != nil {
@@ -39,10 +39,10 @@ func WriteCSV(filePath string, data *OutputData) error {
 		cols := data.ColumnsNeeded(len(locs))
 		groupColumns[i] = cols
 
-		// With spillover, max rows is capped at Size (or actual count if less)
+		// With spillover, max rows is capped at MaxRows (or actual count if less)
 		rowsForGroup := len(locs)
-		if data.Size > 0 && rowsForGroup > data.Size {
-			rowsForGroup = data.Size
+		if data.MaxRows > 0 && rowsForGroup > data.MaxRows {
+			rowsForGroup = data.MaxRows
 		}
 		if rowsForGroup > maxRows {
 			maxRows = rowsForGroup
@@ -78,8 +78,8 @@ func WriteCSV(filePath string, data *OutputData) error {
 
 			// Fill each spillover column for this group
 			for c := 0; c < cols; c++ {
-				idx := c*data.Size + row
-				if data.Size <= 0 {
+				idx := c*data.MaxRows + row
+				if data.MaxRows <= 0 {
 					idx = row // no spillover, just use row index
 				}
 				if idx < len(locs) {

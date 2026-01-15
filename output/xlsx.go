@@ -10,7 +10,7 @@ import (
 // Each column is a title group with the title as the header
 // Priority locations are highlighted in yellow
 // Gap columns are inserted between groups based on data.Gap
-// Size controls max rows per column before spillover
+// MaxRows controls max rows per column before spillover
 // Headers are merged across spillover columns
 func WriteXLSX(filePath string, data *OutputData) error {
 	f := excelize.NewFile()
@@ -57,10 +57,10 @@ func WriteXLSX(filePath string, data *OutputData) error {
 		cols := data.ColumnsNeeded(len(locs))
 		groupColumns[i] = cols
 
-		// With spillover, max rows is capped at Size (or actual count if less)
+		// With spillover, max rows is capped at MaxRows (or actual count if less)
 		rowsForGroup := len(locs)
-		if data.Size > 0 && rowsForGroup > data.Size {
-			rowsForGroup = data.Size
+		if data.MaxRows > 0 && rowsForGroup > data.MaxRows {
+			rowsForGroup = data.MaxRows
 		}
 		if rowsForGroup > maxRows {
 			maxRows = rowsForGroup
@@ -109,9 +109,9 @@ func WriteXLSX(filePath string, data *OutputData) error {
 		// Write data with spillover
 		for idx, loc := range locs {
 			var locCol, locRow int
-			if data.Size > 0 {
-				locCol = startCol + (idx / data.Size)
-				locRow = 2 + (idx % data.Size)
+			if data.MaxRows > 0 {
+				locCol = startCol + (idx / data.MaxRows)
+				locRow = 2 + (idx % data.MaxRows)
 			} else {
 				locCol = startCol
 				locRow = 2 + idx

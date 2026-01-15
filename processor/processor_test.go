@@ -282,7 +282,7 @@ SS4:AB100,c4`
     values: [c]
   - title: "test_group_gft"
     values: [g, gft]
-size: 20
+max_rows: 20
 gap: 1`
 
 	csvPath := createTestCSV(t, csvContent)
@@ -326,8 +326,8 @@ gap: 1`
 	}
 
 	// Check config values
-	if result.Size != 20 {
-		t.Errorf("Size = %d, want 20", result.Size)
+	if result.MaxRows != 20 {
+		t.Errorf("MaxRows = %d, want 20", result.MaxRows)
 	}
 
 	if result.Gap != 1 {
@@ -365,7 +365,7 @@ SS4:HV265.H,c4`
     values: [h, hwk]
   - title: "group_c"
     values: [c]
-size: 20
+max_rows: 20
 gap: 0`
 
 	csvPath := createTestCSV(t, csvContent)
@@ -428,7 +428,7 @@ func TestProcess_InvalidCSVPath(t *testing.T) {
 	rulesContent := `groups:
   - title: "test"
     values: [a]
-size: 10
+max_rows: 10
 gap: 0`
 
 	excelPath := createTestExcel(t, "Sheet1", excelData)
@@ -447,7 +447,7 @@ SS4:AB100,c1`
 	rulesContent := `groups:
   - title: "test"
     values: [a]
-size: 10
+max_rows: 10
 gap: 0`
 
 	csvPath := createTestCSV(t, csvContent)
