@@ -10,6 +10,10 @@ export function GetPrioritiesFile() {
   return window['go']['main']['App']['GetPrioritiesFile']();
 }
 
+export function OpenFile(arg1) {
+  return window['go']['main']['App']['OpenFile'](arg1);
+}
+
 export function Process() {
   return window['go']['main']['App']['Process']();
 }
