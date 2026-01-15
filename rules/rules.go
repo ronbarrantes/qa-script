@@ -10,7 +10,7 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// Config represents the rules.yaml structure
+// Config represents the qa_loc_rules.yaml structure
 type Config struct {
 	Groups []Group `yaml:"groups"`
 	Size   int     `yaml:"size"`
@@ -26,7 +26,7 @@ type Group struct {
 // GroupedLocations maps rule keys to their assigned locations
 type GroupedLocations map[string][]string
 
-// LoadConfig reads and parses the rules.yaml file
+// LoadConfig reads and parses the qa_loc_rules.yaml file
 func LoadConfig(path string) (*Config, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {

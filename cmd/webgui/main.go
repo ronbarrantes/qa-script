@@ -30,7 +30,7 @@ var frontendFS embed.FS
 type App struct {
 	locationsFile  string
 	prioritiesFile string
-	rulesFile      string // Optional custom rules.yaml
+	rulesFile      string // Optional custom qa_loc_rules.yaml
 	tempDir        string
 	server         *http.Server
 	shutdownChan   chan struct{}
@@ -241,7 +241,7 @@ func (a *App) handleUploadPriorities(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// handleUploadRules handles uploading an optional custom rules.yaml file
+// handleUploadRules handles uploading an optional custom qa_loc_rules.yaml file
 func (a *App) handleUploadRules(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -267,8 +267,8 @@ func (a *App) handleUploadRules(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Save to temp directory as rules.yaml
-	destPath := filepath.Join(a.tempDir, "rules.yaml")
+	// Save to temp directory as qa_loc_rules.yaml
+	destPath := filepath.Join(a.tempDir, "qa_loc_rules.yaml")
 	destFile, err := os.Create(destPath)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to create file: %v", err), http.StatusInternalServerError)
@@ -306,7 +306,7 @@ func (a *App) handleProcess(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Use custom rules.yaml if uploaded, otherwise create default
+	// Use custom qa_loc_rules.yaml if uploaded, otherwise create default
 	var rulesPath string
 	if a.rulesFile != "" {
 		rulesPath = a.rulesFile

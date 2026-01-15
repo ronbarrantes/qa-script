@@ -51,7 +51,7 @@ func createTestExcel(t *testing.T, sheetName string, data [][]string) string {
 func createTestRulesYAML(t *testing.T, content string) string {
 	t.Helper()
 	tmpDir := t.TempDir()
-	tmpFile := filepath.Join(tmpDir, "rules.yaml")
+	tmpFile := filepath.Join(tmpDir, "qa_loc_rules.yaml")
 	if err := os.WriteFile(tmpFile, []byte(content), 0644); err != nil {
 		t.Fatalf("failed to write test rules YAML: %v", err)
 	}
@@ -471,7 +471,7 @@ SS4:AB100,c1`
 	csvPath := createTestCSV(t, csvContent)
 	excelPath := createTestExcel(t, "Sheet1", excelData)
 
-	_, err := Process(csvPath, excelPath, "/nonexistent/rules.yaml")
+	_, err := Process(csvPath, excelPath, "/nonexistent/qa_loc_rules.yaml")
 	if err == nil {
 		t.Error("expected error for invalid rules path, got nil")
 	}
