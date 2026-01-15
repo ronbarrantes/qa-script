@@ -1,13 +1,16 @@
 // State
 let locationsFile = '';
 let prioritiesFile = '';
+let rulesFile = '';
 
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
     const locationsZone = document.getElementById('locations-zone');
     const prioritiesZone = document.getElementById('priorities-zone');
+    const rulesZone = document.getElementById('rules-zone');
     const locationsInput = document.getElementById('locations-input');
     const prioritiesInput = document.getElementById('priorities-input');
+    const rulesInput = document.getElementById('rules-input');
 
     // Click to browse - Locations
     locationsZone.addEventListener('click', () => {
@@ -17,6 +20,11 @@ document.addEventListener('DOMContentLoaded', () => {
     // Click to browse - Priorities
     prioritiesZone.addEventListener('click', () => {
         prioritiesInput.click();
+    });
+
+    // Click to browse - Rules
+    rulesZone.addEventListener('click', () => {
+        rulesInput.click();
     });
 
     // File input change handlers
@@ -32,11 +40,20 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+    rulesInput.addEventListener('change', (e) => {
+        if (e.target.files.length > 0) {
+            uploadFile(e.target.files[0], 'rules');
+        }
+    });
+
     // Drag and drop - Locations
-    setupDropZone(locationsZone, 'locations', '.csv');
+    setupDropZone(locationsZone, 'locations', ['.csv']);
     
     // Drag and drop - Priorities
-    setupDropZone(prioritiesZone, 'priorities', '.xlsx');
+    setupDropZone(prioritiesZone, 'priorities', ['.xlsx']);
+
+    // Drag and drop - Rules (accepts .yaml and .yml)
+    setupDropZone(rulesZone, 'rules', ['.yaml', '.yml']);
 
     // Prevent default drag behavior on document
     document.addEventListener('dragover', (e) => e.preventDefault());
@@ -44,7 +61,7 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // Set up drag and drop for a zone
-function setupDropZone(zone, type, extension) {
+function setupDropZone(zone, type, extensions) {
     zone.addEventListener('dragover', (e) => {
         e.preventDefault();
         e.stopPropagation();
@@ -66,9 +83,12 @@ function setupDropZone(zone, type, extension) {
         if (files.length > 0) {
             const file = files[0];
             
-            // Check file extension
-            if (!file.name.toLowerCase().endsWith(extension)) {
-                showStatus(`Please drop a ${extension.toUpperCase().slice(1)} file for ${type}`, 'error');
+            // Check file extension (supports multiple extensions)
+            const fileName = file.name.toLowerCase();
+            const validExtension = extensions.some(ext => fileName.endsWith(ext));
+            if (!validExtension) {
+                const extList = extensions.map(e => e.toUpperCase().slice(1)).join('/');
+                showStatus(`Please drop a ${extList} file for ${type}`, 'error');
                 showZoneError(type);
                 return;
             }
@@ -87,7 +107,12 @@ async function uploadFile(file, type) {
         const formData = new FormData();
         formData.append('file', file);
 
-        const endpoint = type === 'locations' ? '/api/upload-locations' : '/api/upload-priorities';
+        const endpoints = {
+            'locations': '/api/upload-locations',
+            'priorities': '/api/upload-priorities',
+            'rules': '/api/upload-rules'
+        };
+        const endpoint = endpoints[type];
         
         const response = await fetch(endpoint, {
             method: 'POST',
@@ -120,8 +145,10 @@ function updateFileDisplay(type, filename) {
     
     if (type === 'locations') {
         locationsFile = filename;
-    } else {
+    } else if (type === 'priorities') {
         prioritiesFile = filename;
+    } else if (type === 'rules') {
+        rulesFile = filename;
     }
     
     updateOkButton();
@@ -148,15 +175,19 @@ async function resetFiles() {
         
         locationsFile = '';
         prioritiesFile = '';
+        rulesFile = '';
         
         document.getElementById('locations-file').textContent = '';
         document.getElementById('priorities-file').textContent = '';
+        document.getElementById('rules-file').textContent = '';
         document.getElementById('locations-zone').classList.remove('has-file', 'error');
         document.getElementById('priorities-zone').classList.remove('has-file', 'error');
+        document.getElementById('rules-zone').classList.remove('has-file', 'error');
         
         // Reset file inputs
         document.getElementById('locations-input').value = '';
         document.getElementById('priorities-input').value = '';
+        document.getElementById('rules-input').value = '';
         
         updateOkButton();
         clearStatus();

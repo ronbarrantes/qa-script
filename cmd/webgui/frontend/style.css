@@ -47,6 +47,38 @@ h1 {
     margin-bottom: 20px;
 }
 
+.optional-section {
+    margin-bottom: 20px;
+}
+
+.optional-label {
+    color: rgba(255, 255, 255, 0.5);
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 10px;
+    text-align: center;
+}
+
+.drop-zone-small {
+    min-height: 100px;
+    padding: 16px;
+}
+
+.drop-zone-small .drop-icon {
+    font-size: 28px;
+    margin-bottom: 8px;
+}
+
+.drop-zone-small .drop-label {
+    font-size: 14px;
+    margin-bottom: 4px;
+}
+
+.drop-zone-small .drop-hint {
+    font-size: 11px;
+}
+
 .drop-zone {
     background: rgba(255, 255, 255, 0.08);
     border: 2px dashed rgba(255, 255, 255, 0.3);
