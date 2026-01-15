@@ -24,7 +24,7 @@ The output file (`locations_output.xlsx`) is saved in the same folder as your CS
 
 ## Configuration
 
-On first run, a `rules.yaml` file is created in your CSV folder:
+On first run, a `qa_loc_rules.yaml` file is created in your CSV folder:
 
 ```yaml
 groups:
@@ -58,7 +58,7 @@ qa-cli -locations data.csv -priorities priorities.xlsx
 Options:
 - `-csv output.csv` — CSV output path (default: output.csv)
 - `-xlsx output.xlsx` — Excel output path (default: output.xlsx)
-- `-rules-dir .` — Directory for rules.yaml
+- `-rules-dir .` — Directory for qa_loc_rules.yaml
 - `-verbose` — Show detailed output
 
 ## Building from Source

@@ -15,7 +15,7 @@ type Result struct {
 	PriorityLocations      []string                      // Unique sorted locations with QA_HOLD_PICKING
 	GroupedLocations       rules.GroupedLocations        // Locations grouped by rule values (a, b, gft, etc.)
 	TitleGroupedLocations  rules.TitleGroupedLocations   // Locations grouped by titles (pallets, efg, etc.)
-	TitleOrder             []string                      // Titles in the order they appear in rules.yaml
+	TitleOrder             []string                      // Titles in the order they appear in qa_loc_rules.yaml
 	Gap                    int                           // Number of empty columns between groups
 	Size                   int                           // Max rows per column before spillover
 	TotalCSVRows           int

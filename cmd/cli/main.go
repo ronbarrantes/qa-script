@@ -18,7 +18,7 @@ func main() {
 	prioritiesFile := flag.String("priorities", "", "Path to priorities XLSX file (required)")
 	outputCSV := flag.String("csv", "output.csv", "Path for CSV output")
 	outputXLSX := flag.String("xlsx", "output.xlsx", "Path for XLSX output")
-	rulesDir := flag.String("rules-dir", ".", "Directory containing rules.yaml (will create default if not exists)")
+	rulesDir := flag.String("rules-dir", ".", "Directory containing qa_loc_rules.yaml (will create default if not exists)")
 	verbose := flag.Bool("verbose", false, "Show detailed output")
 
 	flag.Usage = func() {
@@ -44,7 +44,7 @@ func main() {
 		log.Fatalf("Priorities file not found: %s", *prioritiesFile)
 	}
 
-	// Ensure rules.yaml exists (create default if not)
+	// Ensure qa_loc_rules.yaml exists (create default if not)
 	rulesPath, err := config.EnsureRulesFile(*rulesDir)
 	if err != nil {
 		log.Fatalf("Failed to ensure rules file: %v", err)
