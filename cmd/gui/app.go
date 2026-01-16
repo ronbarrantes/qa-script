@@ -10,10 +10,12 @@ import (
 	"strings"
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
+	"gopkg.in/yaml.v3"
 
 	"qa-script/config"
 	"qa-script/output"
 	"qa-script/processor"
+	"qa-script/rules"
 )
 
 // App struct
@@ -234,4 +236,155 @@ func cleanFilePath(path string) string {
 	// URL decode common characters
 	path = strings.ReplaceAll(path, "%20", " ")
 	return path
+}
+
+// RulesConfigJS is a JavaScript-friendly version of the rules config
+type RulesConfigJS struct {
+	Groups    []GroupJS `json:"groups"`
+	MaxRows   int       `json:"maxRows"`
+	ColumnGap int       `json:"columnGap"`
+}
+
+// GroupJS is a JavaScript-friendly version of a group
+type GroupJS struct {
+	Title  string `json:"title"`
+	Values string `json:"values"` // Comma-separated string for easier UI editing
+}
+
+// GetRulesConfig reads the current rules configuration
+// If a locations file is selected, uses rules from that directory
+// Otherwise returns the default rules
+func (a *App) GetRulesConfig() (*RulesConfigJS, error) {
+	var rulesPath string
+
+	if a.locationsFile != "" {
+		// Use rules from the locations file directory
+		rulesDir := filepath.Dir(a.locationsFile)
+		rulesPath = filepath.Join(rulesDir, config.DefaultRulesFileName)
+
+		// If rules file doesn't exist in that directory, create from default
+		if _, err := os.Stat(rulesPath); os.IsNotExist(err) {
+			rulesPath, err = config.EnsureRulesFile(rulesDir)
+			if err != nil {
+				return nil, fmt.Errorf("failed to create rules file: %w", err)
+			}
+		}
+	} else {
+		// No locations file selected, use embedded defaults
+		var cfg rules.Config
+		if err := yaml.Unmarshal(config.DefaultRulesYAML, &cfg); err != nil {
+			return nil, fmt.Errorf("failed to parse default rules: %w", err)
+		}
+
+		result := &RulesConfigJS{
+			MaxRows:   cfg.MaxRows,
+			ColumnGap: cfg.ColumnGap,
+			Groups:    make([]GroupJS, len(cfg.Groups)),
+		}
+		for i, g := range cfg.Groups {
+			result.Groups[i] = GroupJS{
+				Title:  g.Title,
+				Values: strings.Join(g.Values, ", "),
+			}
+		}
+		return result, nil
+	}
+
+	// Load the rules file
+	cfg, err := rules.LoadConfig(rulesPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load rules: %w", err)
+	}
+
+	// Convert to JS-friendly format
+	result := &RulesConfigJS{
+		MaxRows:   cfg.MaxRows,
+		ColumnGap: cfg.ColumnGap,
+		Groups:    make([]GroupJS, len(cfg.Groups)),
+	}
+	for i, g := range cfg.Groups {
+		result.Groups[i] = GroupJS{
+			Title:  g.Title,
+			Values: strings.Join(g.Values, ", "),
+		}
+	}
+
+	return result, nil
+}
+
+// SaveRulesConfig saves the rules configuration to the rules file
+// If a locations file is selected, saves to that directory
+// Otherwise saves to the current working directory
+func (a *App) SaveRulesConfig(configJS *RulesConfigJS) error {
+	var rulesPath string
+
+	if a.locationsFile != "" {
+		rulesDir := filepath.Dir(a.locationsFile)
+		rulesPath = filepath.Join(rulesDir, config.DefaultRulesFileName)
+	} else {
+		// Save to current working directory
+		cwd, err := os.Getwd()
+		if err != nil {
+			return fmt.Errorf("failed to get current directory: %w", err)
+		}
+		rulesPath = filepath.Join(cwd, config.DefaultRulesFileName)
+	}
+
+	// Convert from JS format to rules.Config
+	cfg := rules.Config{
+		MaxRows:   configJS.MaxRows,
+		ColumnGap: configJS.ColumnGap,
+		Groups:    make([]rules.Group, len(configJS.Groups)),
+	}
+
+	for i, g := range configJS.Groups {
+		// Parse comma-separated values
+		values := strings.Split(g.Values, ",")
+		cleanValues := make([]string, 0, len(values))
+		for _, v := range values {
+			v = strings.TrimSpace(v)
+			if v != "" {
+				cleanValues = append(cleanValues, v)
+			}
+		}
+
+		cfg.Groups[i] = rules.Group{
+			Title:  g.Title,
+			Values: cleanValues,
+		}
+	}
+
+	// Marshal to YAML
+	data, err := yaml.Marshal(&cfg)
+	if err != nil {
+		return fmt.Errorf("failed to marshal rules: %w", err)
+	}
+
+	// Write to file
+	if err := os.WriteFile(rulesPath, data, 0644); err != nil {
+		return fmt.Errorf("failed to write rules file: %w", err)
+	}
+
+	return nil
+}
+
+// GetDefaultRulesConfig returns the embedded default rules configuration
+func (a *App) GetDefaultRulesConfig() (*RulesConfigJS, error) {
+	var cfg rules.Config
+	if err := yaml.Unmarshal(config.DefaultRulesYAML, &cfg); err != nil {
+		return nil, fmt.Errorf("failed to parse default rules: %w", err)
+	}
+
+	result := &RulesConfigJS{
+		MaxRows:   cfg.MaxRows,
+		ColumnGap: cfg.ColumnGap,
+		Groups:    make([]GroupJS, len(cfg.Groups)),
+	}
+	for i, g := range cfg.Groups {
+		result.Groups[i] = GroupJS{
+			Title:  g.Title,
+			Values: strings.Join(g.Values, ", "),
+		}
+	}
+	return result, nil
 }
