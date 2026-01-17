@@ -18,11 +18,63 @@ import (
 	"qa-script/rules"
 )
 
+// Constants for GUI config
+const (
+	appConfigDirName  = "qa-loc-priorities"
+	guiRulesFileName  = "rules.yaml"
+)
+
 // App struct
 type App struct {
 	ctx            context.Context
 	locationsFile  string
 	prioritiesFile string
+}
+
+// getConfigDir returns the platform-specific config directory for the GUI app
+// Mac/Linux: ~/.config/qa-loc-priorities/
+// Windows: %LOCALAPPDATA%\qa-loc-priorities\
+func getConfigDir() (string, error) {
+	var baseDir string
+
+	switch goruntime.GOOS {
+	case "windows":
+		// Use %LOCALAPPDATA% on Windows
+		baseDir = os.Getenv("LOCALAPPDATA")
+		if baseDir == "" {
+			// Fallback to UserHomeDir + AppData\Local
+			home, err := os.UserHomeDir()
+			if err != nil {
+				return "", fmt.Errorf("could not determine home directory: %w", err)
+			}
+			baseDir = filepath.Join(home, "AppData", "Local")
+		}
+	default:
+		// Mac and Linux use ~/.config
+		home, err := os.UserHomeDir()
+		if err != nil {
+			return "", fmt.Errorf("could not determine home directory: %w", err)
+		}
+		baseDir = filepath.Join(home, ".config")
+	}
+
+	return filepath.Join(baseDir, appConfigDirName), nil
+}
+
+// getGUIRulesPath returns the full path to the GUI rules file in the config directory
+// Creates the config directory if it doesn't exist
+func getGUIRulesPath() (string, error) {
+	configDir, err := getConfigDir()
+	if err != nil {
+		return "", err
+	}
+
+	// Create config directory if it doesn't exist
+	if err := os.MkdirAll(configDir, 0755); err != nil {
+		return "", fmt.Errorf("failed to create config directory: %w", err)
+	}
+
+	return filepath.Join(configDir, guiRulesFileName), nil
 }
 
 // NewApp creates a new App application struct
@@ -253,9 +305,12 @@ type GroupJS struct {
 
 // GetRulesConfig reads the current rules configuration
 // If a locations file is selected, uses rules from that directory
-// Otherwise returns the default rules
+// Otherwise checks the platform-specific config directory, then falls back to embedded defaults
+// Mac/Linux: ~/.config/qa-loc-priorities/rules.yaml
+// Windows: %LOCALAPPDATA%\qa-loc-priorities\rules.yaml
 func (a *App) GetRulesConfig() (*RulesConfigJS, error) {
 	var rulesPath string
+	var useEmbeddedDefaults bool
 
 	if a.locationsFile != "" {
 		// Use rules from the locations file directory
@@ -270,7 +325,20 @@ func (a *App) GetRulesConfig() (*RulesConfigJS, error) {
 			}
 		}
 	} else {
-		// No locations file selected, use embedded defaults
+		// No locations file selected - check platform-specific config directory
+		configPath, err := getGUIRulesPath()
+		if err != nil {
+			useEmbeddedDefaults = true
+		} else {
+			rulesPath = configPath
+			if _, err := os.Stat(rulesPath); os.IsNotExist(err) {
+				useEmbeddedDefaults = true
+			}
+		}
+	}
+
+	// Use embedded defaults if no file found
+	if useEmbeddedDefaults {
 		var cfg rules.Config
 		if err := yaml.Unmarshal(config.DefaultRulesYAML, &cfg); err != nil {
 			return nil, fmt.Errorf("failed to parse default rules: %w", err)
@@ -314,7 +382,9 @@ func (a *App) GetRulesConfig() (*RulesConfigJS, error) {
 
 // SaveRulesConfig saves the rules configuration to the rules file
 // If a locations file is selected, saves to that directory
-// Otherwise saves to the current working directory
+// Otherwise saves to the platform-specific config directory
+// Mac/Linux: ~/.config/qa-loc-priorities/rules.yaml
+// Windows: %LOCALAPPDATA%\qa-loc-priorities\rules.yaml
 func (a *App) SaveRulesConfig(configJS *RulesConfigJS) error {
 	var rulesPath string
 
@@ -322,12 +392,12 @@ func (a *App) SaveRulesConfig(configJS *RulesConfigJS) error {
 		rulesDir := filepath.Dir(a.locationsFile)
 		rulesPath = filepath.Join(rulesDir, config.DefaultRulesFileName)
 	} else {
-		// Save to current working directory
-		cwd, err := os.Getwd()
+		// Save to platform-specific config directory
+		configPath, err := getGUIRulesPath()
 		if err != nil {
-			return fmt.Errorf("failed to get current directory: %w", err)
+			return fmt.Errorf("failed to get config path: %w", err)
 		}
-		rulesPath = filepath.Join(cwd, config.DefaultRulesFileName)
+		rulesPath = configPath
 	}
 
 	// Convert from JS format to rules.Config
