@@ -303,59 +303,22 @@ type GroupJS struct {
 	Values string `json:"values"` // Comma-separated string for easier UI editing
 }
 
-// GetRulesConfig reads the current rules configuration
-// If a locations file is selected, uses rules from that directory
-// Otherwise checks the platform-specific config directory, then falls back to embedded defaults
+// GetRulesConfig reads the current rules configuration from the platform-specific config directory
+// Falls back to embedded defaults if no config file exists
 // Mac/Linux: ~/.config/qa-loc-priorities/rules.yaml
 // Windows: %LOCALAPPDATA%\qa-loc-priorities\rules.yaml
 func (a *App) GetRulesConfig() (*RulesConfigJS, error) {
-	var rulesPath string
-	var useEmbeddedDefaults bool
-
-	if a.locationsFile != "" {
-		// Use rules from the locations file directory
-		rulesDir := filepath.Dir(a.locationsFile)
-		rulesPath = filepath.Join(rulesDir, config.DefaultRulesFileName)
-
-		// If rules file doesn't exist in that directory, create from default
-		if _, err := os.Stat(rulesPath); os.IsNotExist(err) {
-			rulesPath, err = config.EnsureRulesFile(rulesDir)
-			if err != nil {
-				return nil, fmt.Errorf("failed to create rules file: %w", err)
-			}
-		}
-	} else {
-		// No locations file selected - check platform-specific config directory
-		configPath, err := getGUIRulesPath()
-		if err != nil {
-			useEmbeddedDefaults = true
-		} else {
-			rulesPath = configPath
-			if _, err := os.Stat(rulesPath); os.IsNotExist(err) {
-				useEmbeddedDefaults = true
-			}
-		}
+	// Always use platform-specific config directory
+	rulesPath, err := getGUIRulesPath()
+	if err != nil {
+		// Fall back to embedded defaults if we can't get config path
+		return a.getEmbeddedDefaults()
 	}
 
-	// Use embedded defaults if no file found
-	if useEmbeddedDefaults {
-		var cfg rules.Config
-		if err := yaml.Unmarshal(config.DefaultRulesYAML, &cfg); err != nil {
-			return nil, fmt.Errorf("failed to parse default rules: %w", err)
-		}
-
-		result := &RulesConfigJS{
-			MaxRows:   cfg.MaxRows,
-			ColumnGap: cfg.ColumnGap,
-			Groups:    make([]GroupJS, len(cfg.Groups)),
-		}
-		for i, g := range cfg.Groups {
-			result.Groups[i] = GroupJS{
-				Title:  g.Title,
-				Values: strings.Join(g.Values, ", "),
-			}
-		}
-		return result, nil
+	// Check if config file exists
+	if _, err := os.Stat(rulesPath); os.IsNotExist(err) {
+		// No config file yet, use embedded defaults
+		return a.getEmbeddedDefaults()
 	}
 
 	// Load the rules file
@@ -365,6 +328,20 @@ func (a *App) GetRulesConfig() (*RulesConfigJS, error) {
 	}
 
 	// Convert to JS-friendly format
+	return a.configToJS(cfg), nil
+}
+
+// getEmbeddedDefaults returns the embedded default rules as RulesConfigJS
+func (a *App) getEmbeddedDefaults() (*RulesConfigJS, error) {
+	var cfg rules.Config
+	if err := yaml.Unmarshal(config.DefaultRulesYAML, &cfg); err != nil {
+		return nil, fmt.Errorf("failed to parse default rules: %w", err)
+	}
+	return a.configToJS(&cfg), nil
+}
+
+// configToJS converts a rules.Config to RulesConfigJS
+func (a *App) configToJS(cfg *rules.Config) *RulesConfigJS {
 	result := &RulesConfigJS{
 		MaxRows:   cfg.MaxRows,
 		ColumnGap: cfg.ColumnGap,
@@ -376,35 +353,36 @@ func (a *App) GetRulesConfig() (*RulesConfigJS, error) {
 			Values: strings.Join(g.Values, ", "),
 		}
 	}
-
-	return result, nil
+	return result
 }
 
-// SaveRulesConfig saves the rules configuration to the rules file
-// If a locations file is selected, saves to that directory
-// Otherwise saves to the platform-specific config directory
+// rulesConfigYAML is used for YAML marshaling with flow-style arrays [a, b, c]
+type rulesConfigYAML struct {
+	Groups    []rulesGroupYAML `yaml:"groups"`
+	MaxRows   int              `yaml:"max_rows"`
+	ColumnGap int              `yaml:"column_gap"`
+}
+
+type rulesGroupYAML struct {
+	Title  string   `yaml:"title"`
+	Values []string `yaml:"values,flow"` // flow style: [a, b, c] instead of - a\n- b\n- c
+}
+
+// SaveRulesConfig saves the rules configuration to the platform-specific config directory
 // Mac/Linux: ~/.config/qa-loc-priorities/rules.yaml
 // Windows: %LOCALAPPDATA%\qa-loc-priorities\rules.yaml
 func (a *App) SaveRulesConfig(configJS *RulesConfigJS) error {
-	var rulesPath string
-
-	if a.locationsFile != "" {
-		rulesDir := filepath.Dir(a.locationsFile)
-		rulesPath = filepath.Join(rulesDir, config.DefaultRulesFileName)
-	} else {
-		// Save to platform-specific config directory
-		configPath, err := getGUIRulesPath()
-		if err != nil {
-			return fmt.Errorf("failed to get config path: %w", err)
-		}
-		rulesPath = configPath
+	// Always save to platform-specific config directory
+	rulesPath, err := getGUIRulesPath()
+	if err != nil {
+		return fmt.Errorf("failed to get config path: %w", err)
 	}
 
-	// Convert from JS format to rules.Config
-	cfg := rules.Config{
+	// Convert from JS format to YAML struct with flow-style arrays
+	cfg := rulesConfigYAML{
 		MaxRows:   configJS.MaxRows,
 		ColumnGap: configJS.ColumnGap,
-		Groups:    make([]rules.Group, len(configJS.Groups)),
+		Groups:    make([]rulesGroupYAML, len(configJS.Groups)),
 	}
 
 	for i, g := range configJS.Groups {
@@ -418,13 +396,13 @@ func (a *App) SaveRulesConfig(configJS *RulesConfigJS) error {
 			}
 		}
 
-		cfg.Groups[i] = rules.Group{
+		cfg.Groups[i] = rulesGroupYAML{
 			Title:  g.Title,
 			Values: cleanValues,
 		}
 	}
 
-	// Marshal to YAML
+	// Marshal to YAML with flow-style arrays
 	data, err := yaml.Marshal(&cfg)
 	if err != nil {
 		return fmt.Errorf("failed to marshal rules: %w", err)
@@ -440,21 +418,5 @@ func (a *App) SaveRulesConfig(configJS *RulesConfigJS) error {
 
 // GetDefaultRulesConfig returns the embedded default rules configuration
 func (a *App) GetDefaultRulesConfig() (*RulesConfigJS, error) {
-	var cfg rules.Config
-	if err := yaml.Unmarshal(config.DefaultRulesYAML, &cfg); err != nil {
-		return nil, fmt.Errorf("failed to parse default rules: %w", err)
-	}
-
-	result := &RulesConfigJS{
-		MaxRows:   cfg.MaxRows,
-		ColumnGap: cfg.ColumnGap,
-		Groups:    make([]GroupJS, len(cfg.Groups)),
-	}
-	for i, g := range cfg.Groups {
-		result.Groups[i] = GroupJS{
-			Title:  g.Title,
-			Values: strings.Join(g.Values, ", "),
-		}
-	}
-	return result, nil
+	return a.getEmbeddedDefaults()
 }
