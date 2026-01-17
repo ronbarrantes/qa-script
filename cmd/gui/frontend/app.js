@@ -21,6 +21,12 @@ document.addEventListener('DOMContentLoaded', () => {
     window.runtime?.EventsOn('wails:file-drop', (x, y, files) => {
         if (!files || files.length === 0) return;
         
+        // Ignore file drops when settings modal is active (could be internal drag-drop)
+        const settingsModal = document.getElementById('settings-modal');
+        if (settingsModal && settingsModal.classList.contains('active')) {
+            return;
+        }
+        
         const file = files[0];
         const locationsZone = document.getElementById('locations-zone');
         const prioritiesZone = document.getElementById('priorities-zone');
@@ -241,6 +247,9 @@ async function openSettings() {
         // Populate the UI
         populateSettingsUI(config);
         
+        // Initialize drag-drop on the groups list
+        initGroupsListDragDrop();
+        
         // Show modal
         modal.classList.add('active');
     } catch (err) {
@@ -299,15 +308,52 @@ function addGroupToUI(title = '', values = '', index = null) {
         </div>
     `;
     
-    // Add drag event listeners
+    // Add drag event listeners (only dragstart and dragend on items)
     groupItem.addEventListener('dragstart', handleDragStart);
     groupItem.addEventListener('dragend', handleDragEnd);
-    groupItem.addEventListener('dragover', handleGroupDragOver);
-    groupItem.addEventListener('dragenter', handleDragEnter);
-    groupItem.addEventListener('dragleave', handleDragLeave);
-    groupItem.addEventListener('drop', handleGroupDrop);
     
     groupsList.appendChild(groupItem);
+}
+
+// Initialize drag-drop on the groups list container
+function initGroupsListDragDrop() {
+    const groupsList = document.getElementById('groups-list');
+    if (!groupsList || groupsList.dataset.dragInitialized) return;
+    
+    groupsList.dataset.dragInitialized = 'true';
+    
+    groupsList.addEventListener('dragover', handleListDragOver);
+    groupsList.addEventListener('drop', handleListDrop);
+    
+    // Prevent the modal from letting drag events bubble to the main window
+    const modal = document.getElementById('settings-modal');
+    if (modal && !modal.dataset.dragInitialized) {
+        modal.dataset.dragInitialized = 'true';
+        
+        // Prevent file drops on the modal from reaching the main window
+        modal.addEventListener('dragover', (e) => {
+            if (draggedItem) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+        });
+        modal.addEventListener('drop', (e) => {
+            if (draggedItem) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+        });
+        modal.addEventListener('dragenter', (e) => {
+            if (draggedItem) {
+                e.stopPropagation();
+            }
+        });
+        modal.addEventListener('dragleave', (e) => {
+            if (draggedItem) {
+                e.stopPropagation();
+            }
+        });
+    }
 }
 
 // Add a new empty group
@@ -338,70 +384,123 @@ function removeGroup(button) {
 // =====================
 
 let draggedItem = null;
+let currentDropTarget = null;
+let dropPosition = null; // 'before' or 'after'
 
 function handleDragStart(e) {
+    // Stop propagation to prevent Wails file drop handler from catching this
+    e.stopPropagation();
+    
     draggedItem = this;
     this.classList.add('dragging');
     
-    // Set drag image and data
+    // Set drag data - use a custom type to distinguish from file drops
     e.dataTransfer.effectAllowed = 'move';
-    e.dataTransfer.setData('text/html', this.innerHTML);
+    e.dataTransfer.setData('application/x-group-drag', 'true');
     
-    // Delay adding the dragging-active class to allow the drag image to be captured
+    // Delay to allow drag image capture
     setTimeout(() => {
-        document.getElementById('groups-list').classList.add('dragging-active');
-    }, 0);
+        const groupsList = document.getElementById('groups-list');
+        groupsList.classList.add('dragging-active');
+    }, 10);
 }
 
 function handleDragEnd(e) {
+    e.stopPropagation();
+    
     this.classList.remove('dragging');
-    document.getElementById('groups-list').classList.remove('dragging-active');
+    
+    const groupsList = document.getElementById('groups-list');
+    groupsList.classList.remove('dragging-active');
     
     // Remove all drag-over classes
     document.querySelectorAll('.group-item').forEach(item => {
-        item.classList.remove('drag-over');
+        item.classList.remove('drag-over', 'drag-over-top', 'drag-over-bottom');
     });
     
     draggedItem = null;
+    currentDropTarget = null;
+    dropPosition = null;
 }
 
-function handleGroupDragOver(e) {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
-    return false;
-}
-
-function handleDragEnter(e) {
-    if (this !== draggedItem) {
-        this.classList.add('drag-over');
-    }
-}
-
-function handleDragLeave(e) {
-    this.classList.remove('drag-over');
-}
-
-function handleGroupDrop(e) {
-    e.stopPropagation();
-    e.preventDefault();
+function handleListDragOver(e) {
+    // Only handle our custom group drag, not file drops
+    if (!draggedItem) return;
     
-    if (draggedItem !== this) {
-        const groupsList = document.getElementById('groups-list');
-        const items = [...groupsList.querySelectorAll('.group-item')];
-        const draggedIndex = items.indexOf(draggedItem);
-        const targetIndex = items.indexOf(this);
+    e.preventDefault();
+    e.stopPropagation();
+    e.dataTransfer.dropEffect = 'move';
+    
+    const groupsList = document.getElementById('groups-list');
+    const items = [...groupsList.querySelectorAll('.group-item:not(.dragging)')];
+    
+    // Clear previous indicators
+    items.forEach(item => {
+        item.classList.remove('drag-over-top', 'drag-over-bottom');
+    });
+    
+    // Find the item we're hovering over
+    let targetItem = null;
+    let insertBefore = true;
+    
+    for (const item of items) {
+        const rect = item.getBoundingClientRect();
+        const midY = rect.top + rect.height / 2;
         
-        if (draggedIndex < targetIndex) {
-            // Dragging down - insert after target
-            this.parentNode.insertBefore(draggedItem, this.nextSibling);
-        } else {
-            // Dragging up - insert before target
-            this.parentNode.insertBefore(draggedItem, this);
+        if (e.clientY < midY) {
+            targetItem = item;
+            insertBefore = true;
+            break;
+        } else if (e.clientY >= rect.top && e.clientY <= rect.bottom) {
+            targetItem = item;
+            insertBefore = false;
         }
     }
     
-    this.classList.remove('drag-over');
-    return false;
+    // If we're below all items, target the last item
+    if (!targetItem && items.length > 0) {
+        targetItem = items[items.length - 1];
+        insertBefore = false;
+    }
+    
+    if (targetItem) {
+        currentDropTarget = targetItem;
+        dropPosition = insertBefore ? 'before' : 'after';
+        
+        if (insertBefore) {
+            targetItem.classList.add('drag-over-top');
+        } else {
+            targetItem.classList.add('drag-over-bottom');
+        }
+    }
+}
+
+function handleListDrop(e) {
+    // Only handle our custom group drag
+    if (!draggedItem || !currentDropTarget) return;
+    
+    e.preventDefault();
+    e.stopPropagation();
+    
+    const groupsList = document.getElementById('groups-list');
+    
+    // Perform the move
+    if (dropPosition === 'before') {
+        groupsList.insertBefore(draggedItem, currentDropTarget);
+    } else {
+        // Insert after
+        const nextSibling = currentDropTarget.nextSibling;
+        if (nextSibling) {
+            groupsList.insertBefore(draggedItem, nextSibling);
+        } else {
+            groupsList.appendChild(draggedItem);
+        }
+    }
+    
+    // Clean up
+    document.querySelectorAll('.group-item').forEach(item => {
+        item.classList.remove('drag-over', 'drag-over-top', 'drag-over-bottom');
+    });
 }
 
 // Get current settings from UI

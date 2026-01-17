@@ -343,24 +343,32 @@ h1 {
 .groups-list {
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: 14px;
     margin-bottom: 16px;
+    min-height: 100px;
+}
+
+.groups-list.dragging-active {
+    padding: 4px;
+    margin: -4px;
+    border-radius: 12px;
+    background: rgba(74, 158, 255, 0.05);
 }
 
 .groups-list.dragging-active .group-item:not(.dragging) {
-    transition: transform 0.2s ease;
+    transition: transform 0.15s ease, border-color 0.15s ease;
 }
 
 .group-item {
     background: var(--bg-card);
-    border: 1px solid var(--border-color);
+    border: 2px solid var(--border-color);
     border-radius: 10px;
-    padding: 14px;
+    padding: 14px 14px 14px 10px;
     display: flex;
     flex-direction: column;
     gap: 10px;
     position: relative;
-    transition: border-color 0.2s ease, transform 0.2s ease, opacity 0.2s ease;
+    transition: border-color 0.2s ease, transform 0.2s ease, opacity 0.2s ease, box-shadow 0.2s ease;
     cursor: default;
 }
 
@@ -373,25 +381,48 @@ h1 {
 }
 
 .group-item.dragging {
-    opacity: 0.5;
+    opacity: 0.4;
     border-color: var(--accent-blue);
     border-style: dashed;
+    transform: scale(0.98);
 }
 
 .group-item.drag-over {
-    border-color: var(--accent-green);
-    transform: translateY(4px);
+    border-color: var(--accent-blue);
 }
 
-.group-item.drag-over::before {
+/* Drop indicator - top */
+.group-item.drag-over-top {
+    border-color: var(--accent-green);
+}
+
+.group-item.drag-over-top::before {
     content: '';
     position: absolute;
-    top: -8px;
-    left: 0;
-    right: 0;
-    height: 3px;
+    top: -7px;
+    left: 10px;
+    right: 10px;
+    height: 4px;
     background: var(--accent-green);
     border-radius: 2px;
+    box-shadow: 0 0 8px var(--accent-green);
+}
+
+/* Drop indicator - bottom */
+.group-item.drag-over-bottom {
+    border-color: var(--accent-green);
+}
+
+.group-item.drag-over-bottom::after {
+    content: '';
+    position: absolute;
+    bottom: -7px;
+    left: 10px;
+    right: 10px;
+    height: 4px;
+    background: var(--accent-green);
+    border-radius: 2px;
+    box-shadow: 0 0 8px var(--accent-green);
 }
 
 .group-row {
