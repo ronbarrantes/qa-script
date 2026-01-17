@@ -284,7 +284,6 @@ function addGroupToUI(title = '', values = '', index = null) {
     
     const groupItem = document.createElement('div');
     groupItem.className = 'group-item';
-    groupItem.draggable = true;
     groupItem.innerHTML = `
         <div class="group-row">
             <div class="drag-handle" title="Drag to reorder">
@@ -308,22 +307,29 @@ function addGroupToUI(title = '', values = '', index = null) {
         </div>
     `;
     
-    // Add drag event listeners (only dragstart and dragend on items)
-    groupItem.addEventListener('dragstart', handleDragStart);
-    groupItem.addEventListener('dragend', handleDragEnd);
-    
     groupsList.appendChild(groupItem);
 }
 
 // Initialize drag-drop on the groups list container
 function initGroupsListDragDrop() {
     const groupsList = document.getElementById('groups-list');
-    if (!groupsList || groupsList.dataset.dragInitialized) return;
+    if (!groupsList) return;
     
-    groupsList.dataset.dragInitialized = 'true';
-    
-    groupsList.addEventListener('dragover', handleListDragOver);
-    groupsList.addEventListener('drop', handleListDrop);
+    if (!groupsSortable) {
+        if (typeof Sortable === 'undefined') {
+            console.warn('SortableJS is not available; drag and drop disabled.');
+            return;
+        }
+        
+        groupsSortable = Sortable.create(groupsList, {
+            animation: 150,
+            handle: '.drag-handle',
+            draggable: '.group-item',
+            dragClass: 'dragging',
+            ghostClass: 'drag-ghost',
+            chosenClass: 'drag-chosen'
+        });
+    }
     
     // Prevent the modal from letting drag events bubble to the main window
     const modal = document.getElementById('settings-modal');
@@ -332,24 +338,24 @@ function initGroupsListDragDrop() {
         
         // Prevent file drops on the modal from reaching the main window
         modal.addEventListener('dragover', (e) => {
-            if (draggedItem) {
+            if (modal.classList.contains('active')) {
                 e.preventDefault();
                 e.stopPropagation();
             }
         });
         modal.addEventListener('drop', (e) => {
-            if (draggedItem) {
+            if (modal.classList.contains('active')) {
                 e.preventDefault();
                 e.stopPropagation();
             }
         });
         modal.addEventListener('dragenter', (e) => {
-            if (draggedItem) {
+            if (modal.classList.contains('active')) {
                 e.stopPropagation();
             }
         });
         modal.addEventListener('dragleave', (e) => {
-            if (draggedItem) {
+            if (modal.classList.contains('active')) {
                 e.stopPropagation();
             }
         });
@@ -380,128 +386,10 @@ function removeGroup(button) {
 }
 
 // =====================
-// Drag and Drop for Groups
+// Drag and Drop for Groups (SortableJS)
 // =====================
 
-let draggedItem = null;
-let currentDropTarget = null;
-let dropPosition = null; // 'before' or 'after'
-
-function handleDragStart(e) {
-    // Stop propagation to prevent Wails file drop handler from catching this
-    e.stopPropagation();
-    
-    draggedItem = this;
-    this.classList.add('dragging');
-    
-    // Set drag data - use a custom type to distinguish from file drops
-    e.dataTransfer.effectAllowed = 'move';
-    e.dataTransfer.setData('application/x-group-drag', 'true');
-    
-    // Delay to allow drag image capture
-    setTimeout(() => {
-        const groupsList = document.getElementById('groups-list');
-        groupsList.classList.add('dragging-active');
-    }, 10);
-}
-
-function handleDragEnd(e) {
-    e.stopPropagation();
-    
-    this.classList.remove('dragging');
-    
-    const groupsList = document.getElementById('groups-list');
-    groupsList.classList.remove('dragging-active');
-    
-    // Remove all drag-over classes
-    document.querySelectorAll('.group-item').forEach(item => {
-        item.classList.remove('drag-over', 'drag-over-top', 'drag-over-bottom');
-    });
-    
-    draggedItem = null;
-    currentDropTarget = null;
-    dropPosition = null;
-}
-
-function handleListDragOver(e) {
-    // Only handle our custom group drag, not file drops
-    if (!draggedItem) return;
-    
-    e.preventDefault();
-    e.stopPropagation();
-    e.dataTransfer.dropEffect = 'move';
-    
-    const groupsList = document.getElementById('groups-list');
-    const items = [...groupsList.querySelectorAll('.group-item:not(.dragging)')];
-    
-    // Clear previous indicators
-    items.forEach(item => {
-        item.classList.remove('drag-over-top', 'drag-over-bottom');
-    });
-    
-    // Find the item we're hovering over
-    let targetItem = null;
-    let insertBefore = true;
-    
-    for (const item of items) {
-        const rect = item.getBoundingClientRect();
-        const midY = rect.top + rect.height / 2;
-        
-        if (e.clientY < midY) {
-            targetItem = item;
-            insertBefore = true;
-            break;
-        } else if (e.clientY >= rect.top && e.clientY <= rect.bottom) {
-            targetItem = item;
-            insertBefore = false;
-        }
-    }
-    
-    // If we're below all items, target the last item
-    if (!targetItem && items.length > 0) {
-        targetItem = items[items.length - 1];
-        insertBefore = false;
-    }
-    
-    if (targetItem) {
-        currentDropTarget = targetItem;
-        dropPosition = insertBefore ? 'before' : 'after';
-        
-        if (insertBefore) {
-            targetItem.classList.add('drag-over-top');
-        } else {
-            targetItem.classList.add('drag-over-bottom');
-        }
-    }
-}
-
-function handleListDrop(e) {
-    // Only handle our custom group drag
-    if (!draggedItem || !currentDropTarget) return;
-    
-    e.preventDefault();
-    e.stopPropagation();
-    
-    const groupsList = document.getElementById('groups-list');
-    
-    // Perform the move
-    if (dropPosition === 'before') {
-        groupsList.insertBefore(draggedItem, currentDropTarget);
-    } else {
-        // Insert after
-        const nextSibling = currentDropTarget.nextSibling;
-        if (nextSibling) {
-            groupsList.insertBefore(draggedItem, nextSibling);
-        } else {
-            groupsList.appendChild(draggedItem);
-        }
-    }
-    
-    // Clean up
-    document.querySelectorAll('.group-item').forEach(item => {
-        item.classList.remove('drag-over', 'drag-over-top', 'drag-over-bottom');
-    });
-}
+let groupsSortable = null;
 
 // Get current settings from UI
 function getSettingsFromUI() {

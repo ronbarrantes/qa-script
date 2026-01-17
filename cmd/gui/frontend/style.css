@@ -387,6 +387,16 @@ h1 {
     transform: scale(0.98);
 }
 
+.group-item.drag-ghost {
+    opacity: 0.25;
+    border-color: var(--accent-blue);
+    border-style: dashed;
+}
+
+.group-item.drag-chosen {
+    border-color: var(--accent-blue);
+}
+
 .group-item.drag-over {
     border-color: var(--accent-blue);
 }
