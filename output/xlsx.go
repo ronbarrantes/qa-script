@@ -12,12 +12,18 @@ import (
 // Gap columns are inserted between groups based on data.ColumnGap
 // MaxRows controls max rows per column before spillover
 // Headers are merged across spillover columns
-func WriteXLSX(filePath string, data *OutputData) error {
+func WriteXLSX(filePath string, data *OutputData) (err error) {
 	f := excelize.NewFile()
-	defer f.Close()
+	defer func() {
+		if closeErr := f.Close(); closeErr != nil && err == nil {
+			err = fmt.Errorf("failed to close excel file: %w", closeErr)
+		}
+	}()
 
 	sheetName := "Locations"
-	f.SetSheetName("Sheet1", sheetName)
+	if err := f.SetSheetName("Sheet1", sheetName); err != nil {
+		return fmt.Errorf("failed to set sheet name: %w", err)
+	}
 
 	// Create styles
 	// Note: excelize expects hex colors WITHOUT the # prefix
@@ -77,14 +83,26 @@ func WriteXLSX(filePath string, data *OutputData) error {
 		startCol := col
 
 		// Write header - merge if multiple columns
-		startCell, _ := excelize.CoordinatesToCellName(startCol, 1)
-		endCell, _ := excelize.CoordinatesToCellName(startCol+cols-1, 1)
+		startCell, err := excelize.CoordinatesToCellName(startCol, 1)
+		if err != nil {
+			return fmt.Errorf("failed to get start cell name: %w", err)
+		}
+		endCell, err := excelize.CoordinatesToCellName(startCol+cols-1, 1)
+		if err != nil {
+			return fmt.Errorf("failed to get end cell name: %w", err)
+		}
 
-		f.SetCellValue(sheetName, startCell, title)
-		f.SetCellStyle(sheetName, startCell, endCell, headerStyle)
+		if err := f.SetCellValue(sheetName, startCell, title); err != nil {
+			return fmt.Errorf("failed to set header value: %w", err)
+		}
+		if err := f.SetCellStyle(sheetName, startCell, endCell, headerStyle); err != nil {
+			return fmt.Errorf("failed to set header style: %w", err)
+		}
 
 		if cols > 1 {
-			f.MergeCell(sheetName, startCell, endCell)
+			if err := f.MergeCell(sheetName, startCell, endCell); err != nil {
+				return fmt.Errorf("failed to merge header cells: %w", err)
+			}
 		}
 
 		// Calculate max width needed for this group's data
@@ -97,13 +115,18 @@ func WriteXLSX(filePath string, data *OutputData) error {
 
 		// Set column widths for all columns in this group
 		for c := 0; c < cols; c++ {
-			colName, _ := excelize.ColumnNumberToName(startCol + c)
+			colName, err := excelize.ColumnNumberToName(startCol + c)
+			if err != nil {
+				return fmt.Errorf("failed to get column name: %w", err)
+			}
 			// Add padding for comfortable reading
 			width := float64(maxDataWidth + 2)
 			if width < 15 {
 				width = 15
 			}
-			f.SetColWidth(sheetName, colName, colName, width)
+			if err := f.SetColWidth(sheetName, colName, colName, width); err != nil {
+				return fmt.Errorf("failed to set column width: %w", err)
+			}
 		}
 
 		// Write data with spillover
@@ -117,12 +140,19 @@ func WriteXLSX(filePath string, data *OutputData) error {
 				locRow = 2 + idx
 			}
 
-			cell, _ := excelize.CoordinatesToCellName(locCol, locRow)
-			f.SetCellValue(sheetName, cell, loc)
+			cell, err := excelize.CoordinatesToCellName(locCol, locRow)
+			if err != nil {
+				return fmt.Errorf("failed to get cell name: %w", err)
+			}
+			if err := f.SetCellValue(sheetName, cell, loc); err != nil {
+				return fmt.Errorf("failed to set cell value: %w", err)
+			}
 
 			// Highlight priority locations in yellow
 			if data.IsPriority(loc) {
-				f.SetCellStyle(sheetName, cell, cell, priorityStyle)
+				if err := f.SetCellStyle(sheetName, cell, cell, priorityStyle); err != nil {
+					return fmt.Errorf("failed to set priority style: %w", err)
+				}
 			}
 		}
 

@@ -38,7 +38,34 @@ func LoadConfig(path string) (*Config, error) {
 		return nil, fmt.Errorf("failed to parse config: %w", err)
 	}
 
+	// Validate config values
+	if err := config.Validate(); err != nil {
+		return nil, fmt.Errorf("invalid config: %w", err)
+	}
+
 	return &config, nil
+}
+
+// Validate checks that the config has valid values
+func (c *Config) Validate() error {
+	if c.MaxRows < 0 {
+		return fmt.Errorf("max_rows cannot be negative (got %d)", c.MaxRows)
+	}
+	if c.ColumnGap < 0 {
+		return fmt.Errorf("column_gap cannot be negative (got %d)", c.ColumnGap)
+	}
+	if len(c.Groups) == 0 {
+		return fmt.Errorf("at least one group must be defined")
+	}
+	for i, group := range c.Groups {
+		if group.Title == "" {
+			return fmt.Errorf("group %d has empty title", i+1)
+		}
+		if len(group.Values) == 0 {
+			return fmt.Errorf("group %q has no values", group.Title)
+		}
+	}
+	return nil
 }
 
 // GetAllKeys returns all values from all groups as lowercase keys
@@ -81,11 +108,6 @@ func extractLetterPrefix(location string) string {
 		}
 	}
 	return letters.String()
-}
-
-// isMultiLetterKey checks if a key is 3+ letters (not a single letter key)
-func isMultiLetterKey(key string) bool {
-	return len(key) >= 3
 }
 
 // GroupLocations assigns locations to groups based on the rules

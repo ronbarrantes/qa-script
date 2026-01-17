@@ -13,6 +13,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -28,6 +29,7 @@ var frontendFS embed.FS
 
 // App holds the application state
 type App struct {
+	mu             sync.RWMutex
 	locationsFile  string
 	prioritiesFile string
 	rulesFile      string // Optional custom qa_loc_rules.yaml
@@ -183,13 +185,17 @@ func (a *App) handleUploadLocations(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	a.mu.Lock()
 	a.locationsFile = destPath
+	a.mu.Unlock()
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	if err := json.NewEncoder(w).Encode(map[string]interface{}{
 		"success":  true,
 		"filename": header.Filename,
-	})
+	}); err != nil {
+		log.Printf("Failed to encode response: %v", err)
+	}
 }
 
 // handleUploadPriorities handles uploading the priorities XLSX file
@@ -232,13 +238,17 @@ func (a *App) handleUploadPriorities(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	a.mu.Lock()
 	a.prioritiesFile = destPath
+	a.mu.Unlock()
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	if err := json.NewEncoder(w).Encode(map[string]interface{}{
 		"success":  true,
 		"filename": header.Filename,
-	})
+	}); err != nil {
+		log.Printf("Failed to encode response: %v", err)
+	}
 }
 
 // handleUploadRules handles uploading an optional custom qa_loc_rules.yaml file
@@ -281,13 +291,17 @@ func (a *App) handleUploadRules(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	a.mu.Lock()
 	a.rulesFile = destPath
+	a.mu.Unlock()
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	if err := json.NewEncoder(w).Encode(map[string]interface{}{
 		"success":  true,
 		"filename": header.Filename,
-	})
+	}); err != nil {
+		log.Printf("Failed to encode response: %v", err)
+	}
 }
 
 // handleProcess processes the files and generates output
@@ -297,22 +311,30 @@ func (a *App) handleProcess(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if a.locationsFile == "" {
+	// Read file paths with lock
+	a.mu.RLock()
+	locationsFile := a.locationsFile
+	prioritiesFile := a.prioritiesFile
+	rulesFile := a.rulesFile
+	tempDir := a.tempDir
+	a.mu.RUnlock()
+
+	if locationsFile == "" {
 		http.Error(w, "No locations file selected", http.StatusBadRequest)
 		return
 	}
-	if a.prioritiesFile == "" {
+	if prioritiesFile == "" {
 		http.Error(w, "No priorities file selected", http.StatusBadRequest)
 		return
 	}
 
 	// Use custom qa_loc_rules.yaml if uploaded, otherwise create default
 	var rulesPath string
-	if a.rulesFile != "" {
-		rulesPath = a.rulesFile
+	if rulesFile != "" {
+		rulesPath = rulesFile
 	} else {
 		var err error
-		rulesPath, err = config.EnsureRulesFile(a.tempDir)
+		rulesPath, err = config.EnsureRulesFile(tempDir)
 		if err != nil {
 			http.Error(w, fmt.Sprintf("Failed to ensure rules file: %v", err), http.StatusInternalServerError)
 			return
@@ -320,7 +342,7 @@ func (a *App) handleProcess(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Process the data
-	result, err := processor.Process(a.locationsFile, a.prioritiesFile, rulesPath)
+	result, err := processor.Process(locationsFile, prioritiesFile, rulesPath)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Processing failed: %v", err), http.StatusInternalServerError)
 		return
@@ -336,7 +358,7 @@ func (a *App) handleProcess(w http.ResponseWriter, r *http.Request) {
 	)
 
 	// Generate output filename in temp directory
-	outputPath := filepath.Join(a.tempDir, "location_priorities.xlsx")
+	outputPath := filepath.Join(tempDir, "location_priorities.xlsx")
 
 	// Write XLSX output
 	if err := output.WriteXLSX(outputPath, outputData); err != nil {
@@ -345,11 +367,13 @@ func (a *App) handleProcess(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
-		"success":      true,
-		"downloadUrl":  "/api/download?file=location_priorities.xlsx",
-		"filename":     "location_priorities.xlsx",
-	})
+	if err := json.NewEncoder(w).Encode(map[string]interface{}{
+		"success":     true,
+		"downloadUrl": "/api/download?file=location_priorities.xlsx",
+		"filename":    "location_priorities.xlsx",
+	}); err != nil {
+		log.Printf("Failed to encode response: %v", err)
+	}
 }
 
 // handleDownload serves the output file for download
@@ -381,6 +405,7 @@ func (a *App) handleReset(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	a.mu.Lock()
 	// Remove uploaded files
 	if a.locationsFile != "" {
 		os.Remove(a.locationsFile)
@@ -395,33 +420,44 @@ func (a *App) handleReset(w http.ResponseWriter, r *http.Request) {
 	a.locationsFile = ""
 	a.prioritiesFile = ""
 	a.rulesFile = ""
+	a.mu.Unlock()
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{"success": true})
+	if err := json.NewEncoder(w).Encode(map[string]interface{}{"success": true}); err != nil {
+		log.Printf("Failed to encode response: %v", err)
+	}
 }
 
 // handleStatus returns current file selection status
 func (a *App) handleStatus(w http.ResponseWriter, r *http.Request) {
+	a.mu.RLock()
+	locationsFile := a.locationsFile
+	prioritiesFile := a.prioritiesFile
+	rulesFile := a.rulesFile
+	a.mu.RUnlock()
+
 	locationsName := ""
 	prioritiesName := ""
 	rulesName := ""
-	
-	if a.locationsFile != "" {
-		locationsName = filepath.Base(a.locationsFile)
+
+	if locationsFile != "" {
+		locationsName = filepath.Base(locationsFile)
 	}
-	if a.prioritiesFile != "" {
-		prioritiesName = filepath.Base(a.prioritiesFile)
+	if prioritiesFile != "" {
+		prioritiesName = filepath.Base(prioritiesFile)
 	}
-	if a.rulesFile != "" {
-		rulesName = filepath.Base(a.rulesFile)
+	if rulesFile != "" {
+		rulesName = filepath.Base(rulesFile)
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	if err := json.NewEncoder(w).Encode(map[string]interface{}{
 		"locationsFile":  locationsName,
 		"prioritiesFile": prioritiesName,
 		"rulesFile":      rulesName,
-	})
+	}); err != nil {
+		log.Printf("Failed to encode response: %v", err)
+	}
 }
 
 // handleShutdown triggers server shutdown
@@ -432,7 +468,9 @@ func (a *App) handleShutdown(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{"success": true})
+	if err := json.NewEncoder(w).Encode(map[string]interface{}{"success": true}); err != nil {
+		log.Printf("Failed to encode response: %v", err)
+	}
 
 	// Trigger shutdown after response is sent
 	go func() {

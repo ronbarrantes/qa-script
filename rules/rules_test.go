@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -28,29 +29,6 @@ func TestExtractLetterPrefix(t *testing.T) {
 			result := extractLetterPrefix(tt.input)
 			if result != tt.expected {
 				t.Errorf("extractLetterPrefix(%q) = %q, want %q", tt.input, result, tt.expected)
-			}
-		})
-	}
-}
-
-func TestIsMultiLetterKey(t *testing.T) {
-	tests := []struct {
-		input    string
-		expected bool
-	}{
-		{"a", false},
-		{"ab", false},
-		{"abc", true},
-		{"abcd", true},
-		{"gft", true},
-		{"", false},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.input, func(t *testing.T) {
-			result := isMultiLetterKey(tt.input)
-			if result != tt.expected {
-				t.Errorf("isMultiLetterKey(%q) = %v, want %v", tt.input, result, tt.expected)
 			}
 		})
 	}
@@ -227,6 +205,124 @@ func TestLoadConfig_FileNotFound(t *testing.T) {
 	_, err := LoadConfig("/nonexistent/file.yaml")
 	if err == nil {
 		t.Error("expected error for nonexistent file, got nil")
+	}
+}
+
+func TestConfig_Validate(t *testing.T) {
+	tests := []struct {
+		name        string
+		config      Config
+		expectError bool
+		errorMsg    string
+	}{
+		{
+			name: "valid config",
+			config: Config{
+				Groups:    []Group{{Title: "test", Values: []string{"a"}}},
+				MaxRows:   20,
+				ColumnGap: 1,
+			},
+			expectError: false,
+		},
+		{
+			name: "valid config with zero values",
+			config: Config{
+				Groups:    []Group{{Title: "test", Values: []string{"a"}}},
+				MaxRows:   0,
+				ColumnGap: 0,
+			},
+			expectError: false,
+		},
+		{
+			name: "negative max_rows",
+			config: Config{
+				Groups:    []Group{{Title: "test", Values: []string{"a"}}},
+				MaxRows:   -1,
+				ColumnGap: 0,
+			},
+			expectError: true,
+			errorMsg:    "max_rows cannot be negative",
+		},
+		{
+			name: "negative column_gap",
+			config: Config{
+				Groups:    []Group{{Title: "test", Values: []string{"a"}}},
+				MaxRows:   20,
+				ColumnGap: -5,
+			},
+			expectError: true,
+			errorMsg:    "column_gap cannot be negative",
+		},
+		{
+			name: "empty groups",
+			config: Config{
+				Groups:    []Group{},
+				MaxRows:   20,
+				ColumnGap: 1,
+			},
+			expectError: true,
+			errorMsg:    "at least one group must be defined",
+		},
+		{
+			name: "empty group title",
+			config: Config{
+				Groups:    []Group{{Title: "", Values: []string{"a"}}},
+				MaxRows:   20,
+				ColumnGap: 1,
+			},
+			expectError: true,
+			errorMsg:    "has empty title",
+		},
+		{
+			name: "empty group values",
+			config: Config{
+				Groups:    []Group{{Title: "test", Values: []string{}}},
+				MaxRows:   20,
+				ColumnGap: 1,
+			},
+			expectError: true,
+			errorMsg:    "has no values",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := tt.config.Validate()
+			if tt.expectError {
+				if err == nil {
+					t.Error("expected error, got nil")
+				} else if tt.errorMsg != "" && !strings.Contains(err.Error(), tt.errorMsg) {
+					t.Errorf("expected error containing %q, got %q", tt.errorMsg, err.Error())
+				}
+			} else {
+				if err != nil {
+					t.Errorf("unexpected error: %v", err)
+				}
+			}
+		})
+	}
+}
+
+func TestLoadConfig_InvalidValues(t *testing.T) {
+	// Create a temp file with negative max_rows
+	content := `groups:
+  - title: test
+    values: [a, b]
+max_rows: -10
+column_gap: 1
+`
+	tmpDir := t.TempDir()
+	tmpFile := filepath.Join(tmpDir, "test.yaml")
+	if err := os.WriteFile(tmpFile, []byte(content), 0644); err != nil {
+		t.Fatalf("failed to write temp file: %v", err)
+	}
+
+	_, err := LoadConfig(tmpFile)
+	if err == nil {
+		t.Error("expected error for negative max_rows, got nil")
+	}
+	if !strings.Contains(err.Error(), "max_rows cannot be negative") {
+		t.Errorf("expected error about negative max_rows, got: %v", err)
 	}
 }
 

@@ -10,15 +10,18 @@ import (
 // Each column is a title group with the title as the header
 // Gap columns are inserted between groups based on data.ColumnGap
 // MaxRows controls max rows per column before spillover
-func WriteCSV(filePath string, data *OutputData) error {
+func WriteCSV(filePath string, data *OutputData) (err error) {
 	file, err := os.Create(filePath)
 	if err != nil {
 		return fmt.Errorf("failed to create file: %w", err)
 	}
-	defer file.Close()
+	defer func() {
+		if closeErr := file.Close(); closeErr != nil && err == nil {
+			err = fmt.Errorf("failed to close file: %w", closeErr)
+		}
+	}()
 
 	writer := csv.NewWriter(file)
-	defer writer.Flush()
 
 	// Build group titles (only including groups that have items)
 	groupTitles := make([]string, 0, len(data.TitleOrder)+1)
@@ -99,6 +102,11 @@ func WriteCSV(filePath string, data *OutputData) error {
 		if err := writer.Write(record); err != nil {
 			return fmt.Errorf("failed to write row %d: %w", row, err)
 		}
+	}
+
+	writer.Flush()
+	if err := writer.Error(); err != nil {
+		return fmt.Errorf("failed to flush CSV writer: %w", err)
 	}
 
 	return nil

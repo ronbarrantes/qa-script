@@ -323,8 +323,29 @@ func cleanFilePath(path string) string {
 			path = path[1:]
 		}
 	}
-	// URL decode common characters
-	path = strings.ReplaceAll(path, "%20", " ")
+	// URL decode common characters that may appear in file paths
+	// Using manual replacement for common cases to avoid pulling in net/url
+	replacements := map[string]string{
+		"%20": " ",
+		"%23": "#",
+		"%25": "%",
+		"%26": "&",
+		"%27": "'",
+		"%28": "(",
+		"%29": ")",
+		"%2B": "+",
+		"%2C": ",",
+		"%3B": ";",
+		"%3D": "=",
+		"%40": "@",
+		"%5B": "[",
+		"%5D": "]",
+	}
+	for encoded, decoded := range replacements {
+		path = strings.ReplaceAll(path, encoded, decoded)
+		// Also handle lowercase variants
+		path = strings.ReplaceAll(path, strings.ToLower(encoded), decoded)
+	}
 	return path
 }
 

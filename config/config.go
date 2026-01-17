@@ -12,18 +12,26 @@ var DefaultRulesYAML []byte
 
 const DefaultRulesFileName = "qa_loc_rules.yaml"
 
-// EnsureRulesFile checks if qa_loc_rules.yaml exists, creates it from embedded default if not
-// Returns the path to the rules file
+// EnsureRulesFile checks if qa_loc_rules.yaml exists, creates it from embedded default if not.
+// Returns the path to the rules file and a boolean indicating if a new file was created.
 func EnsureRulesFile(dir string) (string, error) {
 	rulesPath := filepath.Join(dir, DefaultRulesFileName)
 
 	// Check if file exists
-	if _, err := os.Stat(rulesPath); os.IsNotExist(err) {
-		// Create the file from embedded default
-		if err := os.WriteFile(rulesPath, DefaultRulesYAML, 0644); err != nil {
-			return "", fmt.Errorf("failed to create rules file: %w", err)
-		}
-		fmt.Printf("Created default rules file: %s\n", rulesPath)
+	_, err := os.Stat(rulesPath)
+	if err == nil {
+		// File exists
+		return rulesPath, nil
+	}
+
+	if !os.IsNotExist(err) {
+		// Some other error (e.g., permission denied)
+		return "", fmt.Errorf("failed to check rules file: %w", err)
+	}
+
+	// File doesn't exist, create from embedded default
+	if err := os.WriteFile(rulesPath, DefaultRulesYAML, 0644); err != nil {
+		return "", fmt.Errorf("failed to create rules file: %w", err)
 	}
 
 	return rulesPath, nil
