@@ -142,11 +142,17 @@ func (a *App) Process() (string, error) {
 		return "", fmt.Errorf("no priorities file selected")
 	}
 
-	// Ensure qa_loc_rules.yaml exists in the same directory as locations file
-	rulesDir := filepath.Dir(a.locationsFile)
-	rulesPath, err := config.EnsureRulesFile(rulesDir)
+	// Get rules from config directory (GUI always uses config dir, never creates files next to CSV)
+	rulesPath, err := getGUIRulesPath()
 	if err != nil {
-		return "", fmt.Errorf("failed to ensure rules file: %w", err)
+		return "", fmt.Errorf("failed to get rules path: %w", err)
+	}
+
+	// If rules file doesn't exist, create from defaults
+	if _, err := os.Stat(rulesPath); os.IsNotExist(err) {
+		if err := a.createDefaultRulesFile(rulesPath); err != nil {
+			return "", fmt.Errorf("failed to create default rules: %w", err)
+		}
 	}
 
 	// Process the data
@@ -165,7 +171,8 @@ func (a *App) Process() (string, error) {
 	)
 
 	// Generate output filename in same directory as locations file
-	outputPath := filepath.Join(rulesDir, "location_priorities.xlsx")
+	outputDir := filepath.Dir(a.locationsFile)
+	outputPath := filepath.Join(outputDir, "location_priorities.xlsx")
 
 	// Write XLSX output
 	if err := output.WriteXLSX(outputPath, outputData); err != nil {
@@ -173,6 +180,37 @@ func (a *App) Process() (string, error) {
 	}
 
 	return outputPath, nil
+}
+
+// createDefaultRulesFile creates a default rules file at the specified path
+func (a *App) createDefaultRulesFile(path string) error {
+	// Parse embedded defaults
+	var cfg rules.Config
+	if err := yaml.Unmarshal(config.DefaultRulesYAML, &cfg); err != nil {
+		return fmt.Errorf("failed to parse default rules: %w", err)
+	}
+
+	// Convert to YAML struct with flow-style arrays
+	yamlCfg := rulesConfigYAML{
+		MaxRows:   cfg.MaxRows,
+		ColumnGap: cfg.ColumnGap,
+		Groups:    make([]rulesGroupYAML, len(cfg.Groups)),
+	}
+	for i, g := range cfg.Groups {
+		yamlCfg.Groups[i] = rulesGroupYAML{
+			Title:  g.Title,
+			Values: g.Values,
+		}
+	}
+
+	// Marshal to YAML
+	data, err := yaml.Marshal(&yamlCfg)
+	if err != nil {
+		return fmt.Errorf("failed to marshal rules: %w", err)
+	}
+
+	// Write to file
+	return os.WriteFile(path, data, 0644)
 }
 
 // SelectLocationsFile opens a file dialog to select a CSV file
