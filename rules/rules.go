@@ -83,11 +83,6 @@ func extractLetterPrefix(location string) string {
 	return letters.String()
 }
 
-// isMultiLetterKey checks if a key is 3+ letters (not a single letter key)
-func isMultiLetterKey(key string) bool {
-	return len(key) >= 3
-}
-
 // GroupLocations assigns locations to groups based on the rules
 func GroupLocations(locations []string, config *Config) GroupedLocations {
 	// Build a set of valid keys from config

@@ -61,7 +61,11 @@ func LoadPriorities(excelPath string) ([]string, int, error) {
 	for _, row := range excel.Rows {
 		if tagIdx < len(row) && row[tagIdx] == constants.TagQAHoldPicking {
 			if locIdx < len(row) {
-				prioritySet[row[locIdx]] = struct{}{}
+				loc := row[locIdx]
+				// Skip empty locations
+				if loc != "" {
+					prioritySet[loc] = struct{}{}
+				}
 			}
 		}
 	}

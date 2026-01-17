@@ -33,29 +33,6 @@ func TestExtractLetterPrefix(t *testing.T) {
 	}
 }
 
-func TestIsMultiLetterKey(t *testing.T) {
-	tests := []struct {
-		input    string
-		expected bool
-	}{
-		{"a", false},
-		{"ab", false},
-		{"abc", true},
-		{"abcd", true},
-		{"gft", true},
-		{"", false},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.input, func(t *testing.T) {
-			result := isMultiLetterKey(tt.input)
-			if result != tt.expected {
-				t.Errorf("isMultiLetterKey(%q) = %v, want %v", tt.input, result, tt.expected)
-			}
-		})
-	}
-}
-
 func TestConfig_GetAllKeys(t *testing.T) {
 	config := &Config{
 		Groups: []Group{
