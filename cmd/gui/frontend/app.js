@@ -3,6 +3,9 @@ let locationsFile = '';
 let prioritiesFile = '';
 let lastOutputPath = '';
 
+// Settings state
+let savedSettings = null; // Last saved settings (for reset functionality)
+
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
     // Make drop zones clickable
@@ -17,6 +20,12 @@ document.addEventListener('DOMContentLoaded', () => {
     // The event provides x, y coordinates and files array
     window.runtime?.EventsOn('wails:file-drop', (x, y, files) => {
         if (!files || files.length === 0) return;
+        
+        // Ignore file drops when settings modal is active (could be internal drag-drop)
+        const settingsModal = document.getElementById('settings-modal');
+        if (settingsModal && settingsModal.classList.contains('active')) {
+            return;
+        }
         
         const file = files[0];
         const locationsZone = document.getElementById('locations-zone');
@@ -221,3 +230,256 @@ function clearStatus() {
     openBtn.style.display = 'none';
     lastOutputPath = '';
 }
+
+// =====================
+// Settings Modal
+// =====================
+
+// Open settings modal
+async function openSettings() {
+    const modal = document.getElementById('settings-modal');
+    
+    try {
+        // Load current settings from backend
+        const config = await window.go.main.App.GetRulesConfig();
+        savedSettings = JSON.parse(JSON.stringify(config)); // Deep clone for reset
+        
+        // Populate the UI
+        populateSettingsUI(config);
+        
+        // Initialize drag-drop on the groups list
+        initGroupsListDragDrop();
+        
+        // Show modal
+        modal.classList.add('active');
+    } catch (err) {
+        showStatus('Error loading settings: ' + err, 'error');
+    }
+}
+
+// Close settings modal
+function closeSettings() {
+    const modal = document.getElementById('settings-modal');
+    modal.classList.remove('active');
+}
+
+// Populate settings UI with config data
+function populateSettingsUI(config) {
+    const groupsList = document.getElementById('groups-list');
+    groupsList.innerHTML = '';
+    
+    // Add groups
+    config.groups.forEach((group, index) => {
+        addGroupToUI(group.title, group.values, index);
+    });
+    
+    // Set numeric fields
+    document.getElementById('max-rows').value = config.maxRows || 20;
+    document.getElementById('column-gap').value = config.columnGap ?? 1;
+}
+
+// Add a group item to the UI
+function addGroupToUI(title = '', values = '', index = null) {
+    const groupsList = document.getElementById('groups-list');
+    
+    const groupItem = document.createElement('div');
+    groupItem.className = 'group-item';
+    groupItem.innerHTML = `
+        <div class="group-row">
+            <div class="drag-handle" title="Drag to reorder">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="9" cy="6" r="1.5"></circle>
+                    <circle cx="15" cy="6" r="1.5"></circle>
+                    <circle cx="9" cy="12" r="1.5"></circle>
+                    <circle cx="15" cy="12" r="1.5"></circle>
+                    <circle cx="9" cy="18" r="1.5"></circle>
+                    <circle cx="15" cy="18" r="1.5"></circle>
+                </svg>
+            </div>
+            <div class="group-inputs">
+                <input type="text" class="group-title-input" placeholder="Group Title" value="${escapeHtml(title)}">
+                <input type="text" class="group-values-input" placeholder="a, b, c, ..." value="${escapeHtml(values)}">
+            </div>
+            <button class="remove-group-btn" onclick="removeGroup(this)" title="Remove group">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+            </button>
+        </div>
+    `;
+    
+    groupsList.appendChild(groupItem);
+}
+
+// Initialize drag-drop on the groups list container
+function initGroupsListDragDrop() {
+    const groupsList = document.getElementById('groups-list');
+    if (!groupsList) return;
+    
+    if (!groupsSortable) {
+        if (typeof Sortable === 'undefined') {
+            console.warn('SortableJS is not available; drag and drop disabled.');
+            return;
+        }
+        
+        groupsSortable = Sortable.create(groupsList, {
+            animation: 150,
+            handle: '.drag-handle',
+            draggable: '.group-item',
+            dragClass: 'dragging',
+            ghostClass: 'drag-ghost',
+            chosenClass: 'drag-chosen'
+        });
+    }
+    
+    // Prevent the modal from letting drag events bubble to the main window
+    const modal = document.getElementById('settings-modal');
+    if (modal && !modal.dataset.dragInitialized) {
+        modal.dataset.dragInitialized = 'true';
+        
+        // Prevent file drops on the modal from reaching the main window
+        modal.addEventListener('dragover', (e) => {
+            if (modal.classList.contains('active')) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+        });
+        modal.addEventListener('drop', (e) => {
+            if (modal.classList.contains('active')) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+        });
+        modal.addEventListener('dragenter', (e) => {
+            if (modal.classList.contains('active')) {
+                e.stopPropagation();
+            }
+        });
+        modal.addEventListener('dragleave', (e) => {
+            if (modal.classList.contains('active')) {
+                e.stopPropagation();
+            }
+        });
+    }
+}
+
+// Add a new empty group
+function addGroup() {
+    addGroupToUI('', '');
+    
+    // Focus the new title input
+    const groupsList = document.getElementById('groups-list');
+    const lastGroup = groupsList.lastElementChild;
+    if (lastGroup) {
+        const titleInput = lastGroup.querySelector('.group-title-input');
+        titleInput.focus();
+    }
+}
+
+// Remove a group
+function removeGroup(button) {
+    const groupItem = button.closest('.group-item');
+    groupItem.style.opacity = '0';
+    groupItem.style.transform = 'translateX(-10px)';
+    setTimeout(() => {
+        groupItem.remove();
+    }, 150);
+}
+
+// =====================
+// Drag and Drop for Groups (SortableJS)
+// =====================
+
+let groupsSortable = null;
+
+// Get current settings from UI
+function getSettingsFromUI() {
+    const groupsList = document.getElementById('groups-list');
+    const groupItems = groupsList.querySelectorAll('.group-item');
+    
+    const groups = [];
+    groupItems.forEach(item => {
+        const title = item.querySelector('.group-title-input').value.trim();
+        const values = item.querySelector('.group-values-input').value.trim();
+        
+        // Only include groups with a title
+        if (title) {
+            groups.push({ title, values });
+        }
+    });
+    
+    return {
+        groups: groups,
+        maxRows: parseInt(document.getElementById('max-rows').value) || 20,
+        columnGap: parseInt(document.getElementById('column-gap').value) || 0
+    };
+}
+
+// Reset settings to last saved state
+function resetSettings() {
+    if (savedSettings) {
+        populateSettingsUI(savedSettings);
+    }
+}
+
+// Reset to default settings
+async function resetToDefaults() {
+    try {
+        const defaultConfig = await window.go.main.App.GetDefaultRulesConfig();
+        populateSettingsUI(defaultConfig);
+    } catch (err) {
+        showStatus('Error loading defaults: ' + err, 'error');
+    }
+}
+
+// Save settings
+async function saveSettings() {
+    const config = getSettingsFromUI();
+    
+    // Validate
+    if (config.groups.length === 0) {
+        showStatus('At least one group is required', 'error');
+        return;
+    }
+    
+    if (config.maxRows < 1) {
+        showStatus('Max rows must be at least 1', 'error');
+        return;
+    }
+    
+    try {
+        await window.go.main.App.SaveRulesConfig(config);
+        savedSettings = JSON.parse(JSON.stringify(config)); // Update saved state
+        closeSettings();
+        showStatus('Settings saved', 'success');
+        setTimeout(clearStatus, 2000);
+    } catch (err) {
+        showStatus('Error saving settings: ' + err, 'error');
+    }
+}
+
+// Escape HTML for safe insertion
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+// Close modal on outside click
+document.addEventListener('click', (e) => {
+    const modal = document.getElementById('settings-modal');
+    if (e.target === modal) {
+        closeSettings();
+    }
+});
+
+// Close modal on Escape key
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+        const modal = document.getElementById('settings-modal');
+        if (modal.classList.contains('active')) {
+            closeSettings();
+        }
+    }
+});
