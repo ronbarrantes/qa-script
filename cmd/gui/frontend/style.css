@@ -347,6 +347,10 @@ h1 {
     margin-bottom: 16px;
 }
 
+.groups-list.dragging-active .group-item:not(.dragging) {
+    transition: transform 0.2s ease;
+}
+
 .group-item {
     background: var(--bg-card);
     border: 1px solid var(--border-color);
@@ -356,7 +360,8 @@ h1 {
     flex-direction: column;
     gap: 10px;
     position: relative;
-    transition: border-color 0.2s ease;
+    transition: border-color 0.2s ease, transform 0.2s ease, opacity 0.2s ease;
+    cursor: default;
 }
 
 .group-item:hover {
@@ -367,10 +372,62 @@ h1 {
     border-color: var(--accent-blue);
 }
 
+.group-item.dragging {
+    opacity: 0.5;
+    border-color: var(--accent-blue);
+    border-style: dashed;
+}
+
+.group-item.drag-over {
+    border-color: var(--accent-green);
+    transform: translateY(4px);
+}
+
+.group-item.drag-over::before {
+    content: '';
+    position: absolute;
+    top: -8px;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: var(--accent-green);
+    border-radius: 2px;
+}
+
 .group-row {
     display: flex;
     gap: 12px;
     align-items: center;
+}
+
+/* Drag Handle */
+.drag-handle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-secondary);
+    cursor: grab;
+    padding: 4px;
+    border-radius: 4px;
+    transition: all 0.2s ease;
+    opacity: 0.5;
+}
+
+.group-item:hover .drag-handle {
+    opacity: 1;
+}
+
+.drag-handle:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+}
+
+.drag-handle:active {
+    cursor: grabbing;
+}
+
+.drag-handle svg circle {
+    fill: currentColor;
 }
 
 .group-title-input {

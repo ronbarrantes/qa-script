@@ -275,8 +275,19 @@ function addGroupToUI(title = '', values = '', index = null) {
     
     const groupItem = document.createElement('div');
     groupItem.className = 'group-item';
+    groupItem.draggable = true;
     groupItem.innerHTML = `
         <div class="group-row">
+            <div class="drag-handle" title="Drag to reorder">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="9" cy="6" r="1.5"></circle>
+                    <circle cx="15" cy="6" r="1.5"></circle>
+                    <circle cx="9" cy="12" r="1.5"></circle>
+                    <circle cx="15" cy="12" r="1.5"></circle>
+                    <circle cx="9" cy="18" r="1.5"></circle>
+                    <circle cx="15" cy="18" r="1.5"></circle>
+                </svg>
+            </div>
             <input type="text" class="group-title-input" placeholder="Group Title" value="${escapeHtml(title)}">
             <input type="text" class="group-values-input" placeholder="a, b, c, ..." value="${escapeHtml(values)}">
             <button class="remove-group-btn" onclick="removeGroup(this)" title="Remove group">
@@ -287,6 +298,14 @@ function addGroupToUI(title = '', values = '', index = null) {
             </button>
         </div>
     `;
+    
+    // Add drag event listeners
+    groupItem.addEventListener('dragstart', handleDragStart);
+    groupItem.addEventListener('dragend', handleDragEnd);
+    groupItem.addEventListener('dragover', handleGroupDragOver);
+    groupItem.addEventListener('dragenter', handleDragEnter);
+    groupItem.addEventListener('dragleave', handleDragLeave);
+    groupItem.addEventListener('drop', handleGroupDrop);
     
     groupsList.appendChild(groupItem);
 }
@@ -312,6 +331,77 @@ function removeGroup(button) {
     setTimeout(() => {
         groupItem.remove();
     }, 150);
+}
+
+// =====================
+// Drag and Drop for Groups
+// =====================
+
+let draggedItem = null;
+
+function handleDragStart(e) {
+    draggedItem = this;
+    this.classList.add('dragging');
+    
+    // Set drag image and data
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/html', this.innerHTML);
+    
+    // Delay adding the dragging-active class to allow the drag image to be captured
+    setTimeout(() => {
+        document.getElementById('groups-list').classList.add('dragging-active');
+    }, 0);
+}
+
+function handleDragEnd(e) {
+    this.classList.remove('dragging');
+    document.getElementById('groups-list').classList.remove('dragging-active');
+    
+    // Remove all drag-over classes
+    document.querySelectorAll('.group-item').forEach(item => {
+        item.classList.remove('drag-over');
+    });
+    
+    draggedItem = null;
+}
+
+function handleGroupDragOver(e) {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    return false;
+}
+
+function handleDragEnter(e) {
+    if (this !== draggedItem) {
+        this.classList.add('drag-over');
+    }
+}
+
+function handleDragLeave(e) {
+    this.classList.remove('drag-over');
+}
+
+function handleGroupDrop(e) {
+    e.stopPropagation();
+    e.preventDefault();
+    
+    if (draggedItem !== this) {
+        const groupsList = document.getElementById('groups-list');
+        const items = [...groupsList.querySelectorAll('.group-item')];
+        const draggedIndex = items.indexOf(draggedItem);
+        const targetIndex = items.indexOf(this);
+        
+        if (draggedIndex < targetIndex) {
+            // Dragging down - insert after target
+            this.parentNode.insertBefore(draggedItem, this.nextSibling);
+        } else {
+            // Dragging up - insert before target
+            this.parentNode.insertBefore(draggedItem, this);
+        }
+    }
+    
+    this.classList.remove('drag-over');
+    return false;
 }
 
 // Get current settings from UI
