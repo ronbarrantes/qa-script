@@ -4,11 +4,13 @@ import (
 	"context"
 	"embed"
 	"encoding/json"
+	"expvar"
 	"fmt"
 	"io"
 	"log"
 	"net"
 	"net/http"
+	"net/http/pprof"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -36,6 +38,7 @@ type App struct {
 	tempDir        string
 	server         *http.Server
 	shutdownChan   chan struct{}
+	shutdownOnce   sync.Once
 }
 
 func main() {
@@ -45,6 +48,8 @@ func main() {
 		log.Fatal("Failed to create temp directory:", err)
 	}
 	defer os.RemoveAll(tempDir)
+
+	debugEnabled := os.Getenv("QA_WEBGUI_DEBUG") != "" && os.Getenv("QA_WEBGUI_DEBUG") != "0"
 
 	app := &App{
 		tempDir:      tempDir,
@@ -74,6 +79,18 @@ func main() {
 	mux.HandleFunc("/api/status", app.handleStatus)
 	mux.HandleFunc("/api/shutdown", app.handleShutdown)
 	mux.HandleFunc("/api/download", app.handleDownload)
+
+	if debugEnabled {
+		// Runtime diagnostics (opt-in). DO NOT enable in untrusted environments.
+		// - pprof:   /debug/pprof/
+		// - expvar:  /debug/vars
+		mux.HandleFunc("/debug/pprof/", pprof.Index)
+		mux.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
+		mux.HandleFunc("/debug/pprof/profile", pprof.Profile)
+		mux.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
+		mux.HandleFunc("/debug/pprof/trace", pprof.Trace)
+		mux.Handle("/debug/vars", expvar.Handler())
+	}
 
 	app.server = &http.Server{
 		Addr:    fmt.Sprintf("127.0.0.1:%d", port),
@@ -157,6 +174,11 @@ func (a *App) handleUploadLocations(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("Failed to parse form: %v", err), http.StatusBadRequest)
 		return
 	}
+	defer func() {
+		if r.MultipartForm != nil {
+			_ = r.MultipartForm.RemoveAll()
+		}
+	}()
 
 	file, header, err := r.FormFile("file")
 	if err != nil {
@@ -186,6 +208,9 @@ func (a *App) handleUploadLocations(w http.ResponseWriter, r *http.Request) {
 	}
 
 	a.mu.Lock()
+	if a.locationsFile != "" && a.locationsFile != destPath {
+		_ = os.Remove(a.locationsFile)
+	}
 	a.locationsFile = destPath
 	a.mu.Unlock()
 
@@ -210,6 +235,11 @@ func (a *App) handleUploadPriorities(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("Failed to parse form: %v", err), http.StatusBadRequest)
 		return
 	}
+	defer func() {
+		if r.MultipartForm != nil {
+			_ = r.MultipartForm.RemoveAll()
+		}
+	}()
 
 	file, header, err := r.FormFile("file")
 	if err != nil {
@@ -239,6 +269,9 @@ func (a *App) handleUploadPriorities(w http.ResponseWriter, r *http.Request) {
 	}
 
 	a.mu.Lock()
+	if a.prioritiesFile != "" && a.prioritiesFile != destPath {
+		_ = os.Remove(a.prioritiesFile)
+	}
 	a.prioritiesFile = destPath
 	a.mu.Unlock()
 
@@ -263,6 +296,11 @@ func (a *App) handleUploadRules(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("Failed to parse form: %v", err), http.StatusBadRequest)
 		return
 	}
+	defer func() {
+		if r.MultipartForm != nil {
+			_ = r.MultipartForm.RemoveAll()
+		}
+	}()
 
 	file, header, err := r.FormFile("file")
 	if err != nil {
@@ -386,7 +424,7 @@ func (a *App) handleDownload(w http.ResponseWriter, r *http.Request) {
 
 	// Security: only allow downloading from temp directory
 	filePath := filepath.Join(a.tempDir, filepath.Base(filename))
-	
+
 	if _, err := os.Stat(filePath); os.IsNotExist(err) {
 		http.Error(w, "File not found", http.StatusNotFound)
 		return
@@ -394,7 +432,7 @@ func (a *App) handleDownload(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%q", filename))
-	
+
 	http.ServeFile(w, r, filePath)
 }
 
@@ -475,6 +513,8 @@ func (a *App) handleShutdown(w http.ResponseWriter, r *http.Request) {
 	// Trigger shutdown after response is sent
 	go func() {
 		time.Sleep(100 * time.Millisecond)
-		close(a.shutdownChan)
+		a.shutdownOnce.Do(func() {
+			close(a.shutdownChan)
+		})
 	}()
 }
