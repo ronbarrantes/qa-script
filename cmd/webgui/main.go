@@ -4,11 +4,13 @@ import (
 	"context"
 	"embed"
 	"encoding/json"
+	"expvar"
 	"fmt"
 	"io"
 	"log"
 	"net"
 	"net/http"
+	"net/http/pprof"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -47,6 +49,8 @@ func main() {
 	}
 	defer os.RemoveAll(tempDir)
 
+	debugEnabled := os.Getenv("QA_WEBGUI_DEBUG") != "" && os.Getenv("QA_WEBGUI_DEBUG") != "0"
+
 	app := &App{
 		tempDir:      tempDir,
 		shutdownChan: make(chan struct{}),
@@ -75,6 +79,18 @@ func main() {
 	mux.HandleFunc("/api/status", app.handleStatus)
 	mux.HandleFunc("/api/shutdown", app.handleShutdown)
 	mux.HandleFunc("/api/download", app.handleDownload)
+
+	if debugEnabled {
+		// Runtime diagnostics (opt-in). DO NOT enable in untrusted environments.
+		// - pprof:   /debug/pprof/
+		// - expvar:  /debug/vars
+		mux.HandleFunc("/debug/pprof/", pprof.Index)
+		mux.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
+		mux.HandleFunc("/debug/pprof/profile", pprof.Profile)
+		mux.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
+		mux.HandleFunc("/debug/pprof/trace", pprof.Trace)
+		mux.Handle("/debug/vars", expvar.Handler())
+	}
 
 	app.server = &http.Server{
 		Addr:    fmt.Sprintf("127.0.0.1:%d", port),
