@@ -20,8 +20,8 @@ import (
 
 // Constants for GUI config
 const (
-	appConfigDirName  = "qa-loc-priorities"
-	guiRulesFileName  = "rules.yaml"
+	appConfigDirName = "qa-loc-priorities"
+	guiRulesFileName = "rules.yaml"
 )
 
 // App struct
@@ -173,10 +173,25 @@ func (a *App) Process() (string, error) {
 	// Generate output filename in same directory as locations file
 	outputDir := filepath.Dir(a.locationsFile)
 	outputPath := filepath.Join(outputDir, "location_priorities.xlsx")
+	pngPath := filepath.Join(outputDir, "location_priorities.png")
+	htmlPath := filepath.Join(outputDir, "location_priorities.html")
 
 	// Write XLSX output
 	if err := output.WriteXLSX(outputPath, outputData); err != nil {
 		return "", fmt.Errorf("failed to write XLSX: %w", err)
+	}
+
+	// Write PNG preview alongside XLSX (best effort; requires Chrome/Chromium)
+	if err := output.WritePNGPreview(pngPath, outputData); err != nil {
+		// Fall back to HTML preview if PNG can't be generated in this environment.
+		if !output.IsBrowserUnavailable(err) {
+			return "", fmt.Errorf("failed to write PNG preview: %w", err)
+		}
+	}
+
+	// Always write HTML preview too (useful fallback; open in browser)
+	if err := output.WriteHTMLPreview(htmlPath, outputData); err != nil {
+		return "", fmt.Errorf("failed to write HTML preview: %w", err)
 	}
 
 	return outputPath, nil

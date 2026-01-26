@@ -397,6 +397,8 @@ func (a *App) handleProcess(w http.ResponseWriter, r *http.Request) {
 
 	// Generate output filename in temp directory
 	outputPath := filepath.Join(tempDir, "location_priorities.xlsx")
+	htmlPath := filepath.Join(tempDir, "location_priorities.html")
+	pngPath := filepath.Join(tempDir, "location_priorities.png")
 
 	// Write XLSX output
 	if err := output.WriteXLSX(outputPath, outputData); err != nil {
@@ -404,12 +406,31 @@ func (a *App) handleProcess(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Write HTML preview output (always available)
+	if err := output.WriteHTMLPreview(htmlPath, outputData); err != nil {
+		http.Error(w, fmt.Sprintf("Failed to write preview html: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	// Write PNG preview output (best effort; requires Chrome/Chromium)
+	pngOK := false
+	if err := output.WritePNGPreview(pngPath, outputData); err == nil {
+		pngOK = true
+	}
+
 	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(map[string]interface{}{
-		"success":     true,
-		"downloadUrl": "/api/download?file=location_priorities.xlsx",
-		"filename":    "location_priorities.xlsx",
-	}); err != nil {
+	resp := map[string]interface{}{
+		"success":            true,
+		"downloadUrl":        "/api/download?file=location_priorities.xlsx",
+		"filename":           "location_priorities.xlsx",
+		"previewDownloadUrl": "/api/download?file=location_priorities.html",
+		"previewFilename":    "location_priorities.html",
+	}
+	if pngOK {
+		resp["pngDownloadUrl"] = "/api/download?file=location_priorities.png"
+		resp["pngFilename"] = "location_priorities.png"
+	}
+	if err := json.NewEncoder(w).Encode(resp); err != nil {
 		log.Printf("Failed to encode response: %v", err)
 	}
 }
@@ -430,7 +451,15 @@ func (a *App) handleDownload(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+	// Set content type based on extension
+	switch strings.ToLower(filepath.Ext(filePath)) {
+	case ".png":
+		w.Header().Set("Content-Type", "image/png")
+	case ".html", ".htm":
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	default:
+		w.Header().Set("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+	}
 	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%q", filename))
 
 	http.ServeFile(w, r, filePath)

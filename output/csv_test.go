@@ -11,11 +11,11 @@ import (
 
 func TestWriteCSV_Spillover(t *testing.T) {
 	tests := []struct {
-		name       string
-		size       int
-		itemCount  int
-		wantCols   int
-		wantRows   int // data rows (excluding header)
+		name      string
+		size      int
+		itemCount int
+		wantCols  int
+		wantRows  int // data rows (excluding header)
 	}{
 		{
 			name:      "no spillover - items less than size",
@@ -163,10 +163,10 @@ func TestWriteCSV_SpilloverLayout(t *testing.T) {
 func TestWriteCSV_EmptyGroupsOmitted(t *testing.T) {
 	// Test that empty groups are not included in the output
 	grouped := rules.TitleGroupedLocations{
-		"Pallets":   []string{},                    // Empty - should be omitted
-		"Shelves":   []string{"S1", "S2", "S3"},    // Has items - should be included
-		"FloorLocs": []string{},                    // Empty - should be omitted
-		"Bins":      []string{"B1", "B2"},          // Has items - should be included
+		"Pallets":   []string{},                 // Empty - should be omitted
+		"Shelves":   []string{"S1", "S2", "S3"}, // Has items - should be included
+		"FloorLocs": []string{},                 // Empty - should be omitted
+		"Bins":      []string{"B1", "B2"},       // Has items - should be included
 	}
 
 	// TitleOrder includes all groups, but empty ones should be skipped

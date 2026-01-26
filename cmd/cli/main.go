@@ -18,6 +18,10 @@ func main() {
 	prioritiesFile := flag.String("priorities", "", "Path to priorities XLSX file (required)")
 	outputCSV := flag.String("csv", "output.csv", "Path for CSV output")
 	outputXLSX := flag.String("xlsx", "output.xlsx", "Path for XLSX output")
+	outputPreview := flag.String("preview", "", "Path for HTML preview output (optional; default is derived from --xlsx)")
+	outputPNG := flag.String("png", "", "Path for PNG preview output (optional; default is derived from --xlsx)")
+	noPreview := flag.Bool("no-preview", false, "Disable writing the HTML preview next to the XLSX")
+	noPNG := flag.Bool("no-png", false, "Disable writing the PNG preview next to the XLSX")
 	rulesDir := flag.String("rules-dir", ".", "Directory containing qa_loc_rules.yaml (will create default if not exists)")
 	verbose := flag.Bool("verbose", false, "Show detailed output")
 
@@ -82,6 +86,37 @@ func main() {
 	}
 	absXLSX, _ := filepath.Abs(*outputXLSX)
 	fmt.Printf("✓ XLSX written to: %s\n", absXLSX)
+
+	// Write PNG preview output (best effort; requires Chrome/Chromium)
+	if !*noPNG {
+		pngPath := *outputPNG
+		if pngPath == "" {
+			pngPath = output.DefaultPNGPreviewPath(*outputXLSX)
+		}
+		if err := output.WritePNGPreview(pngPath, outputData); err != nil {
+			if output.IsBrowserUnavailable(err) {
+				fmt.Fprintf(os.Stderr, "! PNG preview not generated (%v). HTML preview may still be created.\n", err)
+			} else {
+				log.Fatalf("Failed to write PNG preview: %v", err)
+			}
+		} else {
+			absPNG, _ := filepath.Abs(pngPath)
+			fmt.Printf("✓ PNG preview written to: %s\n", absPNG)
+		}
+	}
+
+	// Write HTML preview output (open in a browser, no Excel needed)
+	if !*noPreview {
+		previewPath := *outputPreview
+		if previewPath == "" {
+			previewPath = output.DefaultHTMLPreviewPath(*outputXLSX)
+		}
+		if err := output.WriteHTMLPreview(previewPath, outputData); err != nil {
+			log.Fatalf("Failed to write HTML preview: %v", err)
+		}
+		absPreview, _ := filepath.Abs(previewPath)
+		fmt.Printf("✓ Preview written to: %s\n", absPreview)
+	}
 
 	fmt.Printf("\nProcessed %d unique locations, %d priority locations\n",
 		len(result.Locations), len(result.PriorityLocations))

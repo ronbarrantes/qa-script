@@ -213,7 +213,14 @@ async function processFiles() {
         const result = await response.json();
         
         // Show success and provide download link
-        showSuccessWithDownload(result.downloadUrl, result.filename);
+        showSuccessWithDownload(
+            result.downloadUrl,
+            result.filename,
+            result.pngDownloadUrl,
+            result.pngFilename,
+            result.previewDownloadUrl,
+            result.previewFilename
+        );
     } catch (err) {
         showStatus('Error: ' + err.message, 'error');
         okBtn.disabled = false;
@@ -221,12 +228,16 @@ async function processFiles() {
 }
 
 // Show success message with download link
-function showSuccessWithDownload(url, filename) {
+function showSuccessWithDownload(url, filename, pngUrl, pngFilename, htmlUrl, htmlFilename) {
     const status = document.getElementById('status');
     status.className = 'status success';
+    const pngLink = (pngUrl && pngFilename) ? `<a href="${pngUrl}" download="${pngFilename}" class="download-link">Download ${pngFilename}</a>` : '';
+    const htmlLink = (htmlUrl && htmlFilename) ? `<a href="${htmlUrl}" download="${htmlFilename}" class="download-link">Download ${htmlFilename}</a>` : '';
     status.innerHTML = `
         <span>✓ Processing complete! </span>
         <a href="${url}" download="${filename}" class="download-link">Download ${filename}</a>
+        ${pngLink ? `<span style="margin:0 8px; opacity:0.5;">|</span>${pngLink}` : ``}
+        ${htmlLink ? `<span style="margin:0 8px; opacity:0.5;">|</span>${htmlLink}` : ``}
     `;
     
     // Auto-trigger download
@@ -236,6 +247,16 @@ function showSuccessWithDownload(url, filename) {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+
+    // Optional: auto-trigger PNG download too
+    if (pngUrl && pngFilename) {
+        const link2 = document.createElement('a');
+        link2.href = pngUrl;
+        link2.download = pngFilename;
+        document.body.appendChild(link2);
+        link2.click();
+        document.body.removeChild(link2);
+    }
     
     // Re-enable button
     document.getElementById('ok-btn').disabled = false;
