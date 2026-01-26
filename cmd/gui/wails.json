@@ -1,13 +1,13 @@
 {
   "$schema": "https://wails.io/schemas/config.v2.json",
-  "name": "qa-location-grouper",
+  "name": "qa-location-priorities",
   "outputfilename": "qa-gui",
   "frontend:install": "",
   "frontend:build": "",
   "frontend:dev:watcher": "",
   "frontend:dev:serverUrl": "",
   "author": {
-    "name": "QA Script",
-    "email": ""
+    "name": "Ron Barrantes",
+    "email": "ronbarrantes@gmail.com"
   }
 }
