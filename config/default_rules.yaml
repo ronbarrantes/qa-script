@@ -6,7 +6,7 @@ groups:
     values: [e, f, g, gft, hvc, hwk, hvb]
 
   - title: "hjkl"
-    values: [h, j, k, l, wiz]
+    values: [h, j, k, l]
 
   - title: "mnst"
     values: [m, n, s, t, mez]
